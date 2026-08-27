@@ -19,7 +19,7 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** create an investigation, ask a WebMCP-aware agent to read it, add one source and one claim, link them, and see the UI update without a page reload.
 
-## Phase 2 — Research workspace UX — Aug 28 ✅ implementation complete
+## Phase 2 — Research workspace UX — Aug 28 ✅
 
 **Goal:** make DeepTrail useful and understandable as a human research workspace while preserving the shared human-agent state.
 
@@ -37,19 +37,26 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** a human can run a small research session, edit the captured material, track provenance and activity, and understand everything without reading raw JSON. A WebMCP agent's mutations remain visibly attributable in the same workspace.
 
-## Phase 3 — Agent collaboration toolset — Aug 29
+## Phase 3 — Agent collaboration toolset — Aug 29 ✅
 
-**Goal:** make WebMCP the product engine rather than a wrapper.
+**Goal:** make WebMCP the product engine rather than a wrapper and turn agent reasoning into inspectable workspace state.
 
-- `deeptrail_add_counterargument`
-- `deeptrail_identify_research_gaps`
-- `deeptrail_update_confidence`
-- `deeptrail_add_open_question`
-- `deeptrail_compare_options`
-- `deeptrail_record_decision`
-- Tight schemas, annotations, validation, and useful tool results
+- [x] `deeptrail_add_open_question`
+- [x] `deeptrail_identify_research_gaps`
+- [x] `deeptrail_add_counterargument`
+- [x] `deeptrail_update_confidence`
+- [x] `deeptrail_compare_options`
+- [x] `deeptrail_record_decision`
+- [x] Deterministic gap engine for unresolved questions, unsupported claims, missing counterevidence, and thin provenance
+- [x] Durable counterarguments with optional claim/source links
+- [x] Confidence history with mandatory rationale
+- [x] Structured option comparisons with criteria, pros, cons, scores, recommendation, and rationale
+- [x] Draft/final decision record kept separate from research evidence
+- [x] Reasoning dashboard that exposes all agent artifacts in the human UI
+- [x] State-aware registration: claim-specific tools only appear once claims exist
+- [x] Backward-compatible migration of Phase 1/2 IndexedDB workspaces
 
-**Exit test:** the agent can inspect current state, identify what is missing, challenge existing work, and update the same workspace the human sees.
+**Exit test:** the agent can inspect current state, identify missing research, deliberately challenge a claim, change confidence with an explicit reason, compare alternatives, and record a draft/final decision while every action remains visible and reversible in the shared workspace.
 
 ## Phase 4 — Evidence graph + critical-thinking modes — Aug 30
 
@@ -60,7 +67,7 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 - **Attack this conclusion** workflow
 - **What would change my mind?** criteria
 - Research Debt score for unresolved gaps and weakly supported claims
-- Confidence history with reasons
+- Confidence history visualization and conclusion-change narrative
 
 **Exit test:** a judge can watch a conclusion change after contradictory evidence is intentionally searched for and added.
 

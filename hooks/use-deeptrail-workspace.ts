@@ -1,25 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { deriveResearchGaps } from "@/lib/reasoning";
 import { clearCurrentWorkspace, loadCurrentWorkspace, saveCurrentWorkspace } from "@/lib/storage";
 import type {
   ActivityActor,
   ActivityEntry,
   ActivityType,
   AddClaimInput,
+  AddCounterargumentInput,
   AddSourceInput,
   Claim,
+  CompareOptionsInput,
+  ConfidenceChange,
+  Counterargument,
+  DecisionRecord,
   EvidenceLink,
   LinkEvidenceInput,
+  OptionComparison,
+  RecordDecisionInput,
+  ResearchGap,
   ResearchNote,
   ResearchQuestion,
   Source,
   UpdateClaimInput,
+  UpdateConfidenceInput,
   UpdateSourceInput,
   Workspace,
 } from "@/lib/types";
 
 const MAX_ACTIVITY_ENTRIES = 120;
+const MAX_REASONING_HISTORY = 80;
 const TRACKING_PARAMETERS = [
   "utm_source",
   "utm_medium",
@@ -36,6 +47,10 @@ function now() {
 
 function id() {
   return crypto.randomUUID();
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeHttpUrl(value: string) {
@@ -96,6 +111,11 @@ export interface DeepTrailActions {
     patch: Partial<Pick<ResearchNote, "title" | "content">>,
     actor?: ActivityActor,
   ) => ResearchNote;
+  identifyResearchGaps: (limit?: number, actor?: ActivityActor) => ResearchGap[];
+  addCounterargument: (input: AddCounterargumentInput, actor?: ActivityActor) => Counterargument;
+  updateConfidence: (input: UpdateConfidenceInput, actor?: ActivityActor) => ConfidenceChange;
+  compareOptions: (input: CompareOptionsInput, actor?: ActivityActor) => OptionComparison;
+  recordDecision: (input: RecordDecisionInput, actor?: ActivityActor) => DecisionRecord;
 }
 
 export function useDeepTrailWorkspace() {
@@ -168,6 +188,10 @@ export function useDeepTrailWorkspace() {
         claims: [],
         evidenceLinks: [],
         notes: [],
+        researchGaps: [],
+        counterarguments: [],
+        confidenceHistory: [],
+        comparisons: [],
         activity: [createdActivity],
       };
       commitWorkspace(next, "Investigation created.");
@@ -310,7 +334,7 @@ export function useDeepTrailWorkspace() {
         id: id(),
         text: input.text.trim(),
         stance: input.stance ?? "neutral",
-        confidence: Math.min(1, Math.max(0, input.confidence ?? 0.5)),
+        confidence: clamp(input.confidence ?? 0.5, 0, 1),
         createdAt: timestamp,
         updatedAt: timestamp,
       };
@@ -336,10 +360,7 @@ export function useDeepTrailWorkspace() {
         ...existing,
         text,
         stance: patch.stance ?? existing.stance,
-        confidence:
-          patch.confidence === undefined
-            ? existing.confidence
-            : Math.min(1, Math.max(0, patch.confidence)),
+        confidence: patch.confidence === undefined ? existing.confidence : clamp(patch.confidence, 0, 1),
         updatedAt: now(),
       };
       const next = withActivity(
@@ -444,6 +465,182 @@ export function useDeepTrailWorkspace() {
     [commitWorkspace],
   );
 
+  const identifyResearchGaps = useCallback(
+    (limit = 8, actor: ActivityActor = "agent") => {
+      const current = workspaceRef.current;
+      if (!current) throw new Error("Create an investigation before analyzing research gaps.");
+      const gaps = deriveResearchGaps(current, limit);
+      const next = withActivity(
+        { ...current, researchGaps: gaps },
+        activity(
+          "research_gaps_refreshed",
+          actor,
+          gaps.length === 1 ? "Identified 1 research gap." : `Identified ${gaps.length} research gaps.`,
+        ),
+      );
+      commitWorkspace(next, "Research gaps refreshed.");
+      return gaps;
+    },
+    [commitWorkspace],
+  );
+
+  const addCounterargument = useCallback(
+    (input: AddCounterargumentInput, actor: ActivityActor = "agent") => {
+      const current = workspaceRef.current;
+      if (!current) throw new Error("Create an investigation before adding a counterargument.");
+      const text = input.text.trim();
+      if (!text) throw new Error("Counterargument text cannot be empty.");
+
+      if (input.targetClaimId && !current.claims.some((claim) => claim.id === input.targetClaimId)) {
+        throw new Error(`Unknown targetClaimId: ${input.targetClaimId}`);
+      }
+
+      const sourceIds = Array.from(new Set(input.sourceIds ?? []));
+      for (const sourceId of sourceIds) {
+        if (!current.sources.some((source) => source.id === sourceId)) {
+          throw new Error(`Unknown sourceId: ${sourceId}`);
+        }
+      }
+
+      const counterargument: Counterargument = {
+        id: id(),
+        text,
+        strength: input.strength ?? "moderate",
+        targetClaimId: input.targetClaimId,
+        sourceIds,
+        createdAt: now(),
+      };
+      const target = current.claims.find((claim) => claim.id === input.targetClaimId);
+      const next = withActivity(
+        { ...current, counterarguments: [counterargument, ...current.counterarguments] },
+        activity(
+          "counterargument_added",
+          actor,
+          target ? `Added counterargument to claim: ${target.text}` : "Added workspace counterargument.",
+          counterargument.id,
+        ),
+      );
+      commitWorkspace(next, "Counterargument added.");
+      return counterargument;
+    },
+    [commitWorkspace],
+  );
+
+  const updateConfidence = useCallback(
+    (input: UpdateConfidenceInput, actor: ActivityActor = "agent") => {
+      const current = workspaceRef.current;
+      if (!current) throw new Error("Create an investigation before updating confidence.");
+      const claim = current.claims.find((item) => item.id === input.claimId);
+      if (!claim) throw new Error(`Unknown claimId: ${input.claimId}`);
+      const reason = input.reason.trim();
+      if (!reason) throw new Error("A reason is required when confidence changes.");
+      const nextConfidence = clamp(input.confidence, 0, 1);
+      const change: ConfidenceChange = {
+        id: id(),
+        claimId: claim.id,
+        previousConfidence: claim.confidence,
+        newConfidence: nextConfidence,
+        reason,
+        createdAt: now(),
+      };
+      const updatedClaim: Claim = { ...claim, confidence: nextConfidence, updatedAt: change.createdAt };
+      const next = withActivity(
+        {
+          ...current,
+          claims: current.claims.map((item) => (item.id === claim.id ? updatedClaim : item)),
+          confidenceHistory: [change, ...current.confidenceHistory].slice(0, MAX_REASONING_HISTORY),
+        },
+        activity(
+          "confidence_updated",
+          actor,
+          `Changed claim confidence from ${Math.round(claim.confidence * 100)}% to ${Math.round(nextConfidence * 100)}%.`,
+          claim.id,
+        ),
+      );
+      commitWorkspace(next, "Claim confidence updated with rationale.");
+      return change;
+    },
+    [commitWorkspace],
+  );
+
+  const compareOptions = useCallback(
+    (input: CompareOptionsInput, actor: ActivityActor = "agent") => {
+      const current = workspaceRef.current;
+      if (!current) throw new Error("Create an investigation before comparing options.");
+      const title = input.title.trim();
+      if (!title) throw new Error("Comparison title is required.");
+      if (!Array.isArray(input.options) || input.options.length < 2) {
+        throw new Error("Compare at least two options.");
+      }
+
+      const names = new Set<string>();
+      const options = input.options.map((option) => {
+        const name = option.name.trim();
+        if (!name) throw new Error("Every option needs a name.");
+        const key = name.toLowerCase();
+        if (names.has(key)) throw new Error(`Duplicate option name: ${name}`);
+        names.add(key);
+        return {
+          id: id(),
+          name,
+          summary: option.summary?.trim() || "",
+          pros: (option.pros ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 8),
+          cons: (option.cons ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 8),
+          score: clamp(option.score ?? 50, 0, 100),
+        };
+      });
+
+      const comparison: OptionComparison = {
+        id: id(),
+        title,
+        criteria: (input.criteria ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 8),
+        options,
+        recommendation: input.recommendation?.trim() || undefined,
+        rationale: input.rationale?.trim() || undefined,
+        createdAt: now(),
+      };
+      const next = withActivity(
+        { ...current, comparisons: [comparison, ...current.comparisons].slice(0, 20) },
+        activity("comparison_added", actor, `Compared ${options.length} options: ${title}`, comparison.id),
+      );
+      commitWorkspace(next, "Option comparison added.");
+      return comparison;
+    },
+    [commitWorkspace],
+  );
+
+  const recordDecision = useCallback(
+    (input: RecordDecisionInput, actor: ActivityActor = "agent") => {
+      const current = workspaceRef.current;
+      if (!current) throw new Error("Create an investigation before recording a decision.");
+      const choice = input.choice.trim();
+      const rationale = input.rationale.trim();
+      if (!choice || !rationale) throw new Error("Decision choice and rationale are required.");
+      const timestamp = now();
+      const decision: DecisionRecord = {
+        id: current.decision?.id ?? id(),
+        choice,
+        rationale,
+        confidence: clamp(input.confidence ?? 0.5, 0, 1),
+        status: input.status ?? "draft",
+        createdAt: current.decision?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+      };
+      const next = withActivity(
+        { ...current, decision },
+        activity(
+          "decision_recorded",
+          actor,
+          `${decision.status === "final" ? "Finalized" : "Recorded draft"} decision: ${decision.choice}`,
+          decision.id,
+        ),
+      );
+      commitWorkspace(next, `${decision.status === "final" ? "Final" : "Draft"} decision recorded.`);
+      return decision;
+    },
+    [commitWorkspace],
+  );
+
   const actions = useMemo<DeepTrailActions>(
     () => ({
       createInvestigation,
@@ -457,6 +654,11 @@ export function useDeepTrailWorkspace() {
       linkEvidence,
       addNote,
       updateNote,
+      identifyResearchGaps,
+      addCounterargument,
+      updateConfidence,
+      compareOptions,
+      recordDecision,
     }),
     [
       createInvestigation,
@@ -470,6 +672,11 @@ export function useDeepTrailWorkspace() {
       linkEvidence,
       addNote,
       updateNote,
+      identifyResearchGaps,
+      addCounterargument,
+      updateConfidence,
+      compareOptions,
+      recordDecision,
     ],
   );
 

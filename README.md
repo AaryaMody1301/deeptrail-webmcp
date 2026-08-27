@@ -2,44 +2,90 @@
 
 **A WebMCP-native workspace where humans and AI agents investigate the web together.**
 
-DeepTrail turns web research into a structured trail of questions, claims, sources, evidence, contradictions, confidence, notes, and decisions. Instead of losing reasoning across tabs and chat threads, the human and agent work against the same visible research state.
+DeepTrail turns web research into an inspectable trail of questions, claims, sources, evidence, gaps, counterarguments, confidence changes, comparisons, and decisions. Instead of losing reasoning across tabs and chat threads, the human and agent work against the same visible research state.
 
 ## Why DeepTrail
 
-Most AI research interfaces optimize for producing an answer. DeepTrail optimizes for making the path to the answer inspectable: what supports it, what contradicts it, what is still unknown, where each finding came from, and what would change the decision.
+Most AI research interfaces optimize for producing an answer. DeepTrail optimizes for making the path to the answer inspectable: what supports it, what contradicts it, what is still unknown, where each finding came from, what changed confidence, and why a decision was reached.
 
 The browser agent provides intelligence and web access. DeepTrail provides structured research state and WebMCP actions. No paid LLM or search API is required.
 
-## Current status — Phase 2
+## Current status — Phase 3
 
-The shared research workspace now supports:
+The WebMCP collaboration layer now supports the full reasoning loop:
 
-- Multiple open/answered research questions
-- Human-editable claims, source metadata, and research notes
-- Source publication/access timestamps and visible provenance
-- URL normalization and duplicate-source prevention
-- Search/filtering across evidence
-- Human-vs-agent activity history
-- Accessible live announcements for dynamic workspace changes
-- Local-first persistence with backward-compatible Phase 1 migration
-- State-aware WebMCP registration
-- Responsive keyboard-friendly UI
+```text
+inspect workspace
+      ↓
+identify research gaps
+      ↓
+research + capture provenance
+      ↓
+add / refine claims
+      ↓
+challenge with counterarguments
+      ↓
+update confidence with a reason
+      ↓
+compare alternatives
+      ↓
+record a draft/final decision
+```
+
+Every step becomes a durable object in the same interface the human sees.
 
 See [`ROADMAP.md`](./ROADMAP.md) for the six-phase hackathon plan.
 
-## Current WebMCP tools
+## WebMCP tools
+
+### Always available
 
 | Tool | Purpose |
 | --- | --- |
-| `deeptrail_get_workspace_context` | Read the active investigation and stable IDs |
+| `deeptrail_get_workspace_context` | Detect/read the active investigation and stable IDs |
+
+### During an active investigation
+
+| Tool | Purpose |
+| --- | --- |
 | `deeptrail_get_open_questions` | Read unresolved research questions |
+| `deeptrail_add_open_question` | Add a concrete follow-up question |
 | `deeptrail_add_source` | Add a web source with provenance metadata |
 | `deeptrail_add_claim` | Add a concise research claim |
 | `deeptrail_link_evidence` | Connect a source to a claim as supports / contradicts / qualifies |
+| `deeptrail_identify_research_gaps` | Derive and persist research gaps from current workspace state |
+| `deeptrail_compare_options` | Record a structured multi-option comparison |
+| `deeptrail_record_decision` | Record/update a draft or final evidence-backed decision |
 
-`deeptrail_get_workspace_context` remains available so an agent can detect whether an investigation exists. The other four tools are registered only while an investigation is active, reducing irrelevant tool context and matching the current page state.
+### Once claims exist
 
-The implementation uses `document.modelContext.registerTool()` and an `AbortController` for clean tool lifecycle management. Read tools use `readOnlyHint`; tools that expose user- or web-derived content use `untrustedContentHint`.
+| Tool | Purpose |
+| --- | --- |
+| `deeptrail_add_counterargument` | Challenge a claim or current line of reasoning |
+| `deeptrail_update_confidence` | Change claim confidence with a mandatory reason and history entry |
+
+This state-aware registration keeps irrelevant tools out of the agent context. The implementation uses `document.modelContext.registerTool()` and an `AbortController` for clean lifecycle management.
+
+## Reasoning model
+
+DeepTrail intentionally separates deterministic analysis from model judgment.
+
+The local gap engine derives only things the application can prove from its own state:
+
+- unresolved questions
+- claims with no linked evidence
+- no captured counterevidence
+- an unusually thin source base
+
+The agent contributes the semantic reasoning DeepTrail cannot infer mechanically:
+
+- counterarguments
+- confidence-change rationale
+- option trade-offs
+- recommendations
+- decision rationale
+
+That distinction prevents the UI from presenting heuristic application logic as if it were model-generated research.
 
 ## Architecture
 
@@ -54,13 +100,13 @@ document.modelContext
 DeepTrail WebMCP bridge
         |
         v
-Research actions + activity trail <----> DeepTrail UI
+Research actions + reasoning objects <----> DeepTrail UI
         |
         v
 IndexedDB (local-first)
 ```
 
-Every mutation updates the shared interface immediately. Agent mutations are marked as `agent`; direct user edits are marked as `human`, making collaboration visible instead of hiding it in a chat transcript.
+Agent mutations are tagged as `agent`; direct user edits are tagged as `human`. Research evidence remains separate from the current decision so incomplete research cannot silently become a conclusion.
 
 ## Stack
 
@@ -73,7 +119,7 @@ Every mutation updates the shared interface immediately. Agent mutations are mar
 
 ## Run locally
 
-Requirements: Node.js 20.9+ and a browser/environment with WebMCP enabled to exercise the agent tools.
+Requirements: Node.js 20.9+ and a browser/environment with WebMCP enabled to exercise agent tools.
 
 ```bash
 npm install
@@ -82,9 +128,7 @@ npm run dev
 
 For local Chrome WebMCP testing, enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and open `http://localhost:3000`.
 
-Create an investigation, then ask your WebMCP-aware agent:
-
-> Read the active DeepTrail investigation and its open questions through WebMCP. Research the most important open question on the web. Add one credible source with useful provenance metadata, add one concise claim grounded in that source, and link the source to the claim with the appropriate evidence relationship. Then summarize what changed in the shared workspace and identify the next research gap.
+Create an investigation, then use the reasoning prompt shown in the UI. It instructs the agent to find gaps, research, challenge its own strongest claim, revise confidence only when warranted, compare options when relevant, and avoid prematurely recording a decision.
 
 The UI still works in browsers without WebMCP and clearly reports that the capability is unavailable.
 
@@ -96,20 +140,23 @@ The UI still works in browsers without WebMCP and clearly reports that the capab
 - Human remains in control of conclusions
 - Provenance is visible in the interface, not hidden in model output
 - Human and agent actions share one inspectable history
+- Agent reasoning becomes inspectable state rather than transient prose
+- Confidence can change only with a recorded reason in the reasoning workflow
+- Decisions remain separate from evidence and can stay draft
 - Web-derived content is treated as untrusted input
 - WebMCP is core product functionality, not a demo wrapper
 - Optimize every feature for the three-minute judge experience
 
-## Web-informed design decisions
+## Web-informed implementation
 
-Phase 2 follows current WebMCP guidance to keep tools single-purpose, register them only when useful in the current page state, update visible interface state after tool completion, and validate inputs in application code. It also makes source provenance visible and provides programmatic status messages for dynamic changes.
+DeepTrail follows the current WebMCP direction: tools have explicit schemas, are registered only when relevant to current application state, and mutate the same visible UI the user is working in. The project uses the current `document.modelContext` API rather than deprecated `navigator.modelContext`.
 
 References:
 
-- [Chrome WebMCP best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices)
+- [WebMCP Community Group specification](https://webmachinelearning.github.io/webmcp/)
+- [Chrome WebMCP overview](https://developer.chrome.com/docs/ai/webmcp)
 - [Chrome WebMCP Imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api)
-- [W3C Data on the Web Best Practices — data provenance](https://www.w3.org/TR/dwbp/)
-- [WCAG 2.2 — status messages](https://www.w3.org/WAI/WCAG22/Understanding/status-messages)
+- [Chrome WebMCP best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices)
 
 ## Hackathon
 

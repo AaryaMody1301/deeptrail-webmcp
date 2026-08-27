@@ -1,11 +1,12 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { ReasoningDashboard } from "@/components/reasoning-dashboard";
 import { useDeepTrailWorkspace } from "@/hooks/use-deeptrail-workspace";
 import { useWebMCPBridge } from "@/hooks/use-webmcp-bridge";
 import type { ClaimStance, QuestionStatus } from "@/lib/types";
 
-const AGENT_PROMPT = `Read the active DeepTrail investigation and its open questions through WebMCP. Research the most important open question on the web. Add one credible source with useful provenance metadata, add one concise claim grounded in that source, and link the source to the claim with the appropriate evidence relationship. Then summarize what changed in the shared workspace and identify the next research gap.`;
+const AGENT_PROMPT = `Read the active DeepTrail investigation through WebMCP. First identify the highest-priority research gaps. Research one important gap on the web, add a credible source with provenance, add or refine a concise claim, and link the evidence. Then deliberately challenge the strongest relevant claim with a counterargument. If the new evidence materially changes confidence, update that claim's confidence with a reason. If this investigation is a decision between alternatives, record a structured option comparison. Record only a draft decision when the available evidence genuinely supports one; otherwise leave the decision open and add the next research question.`;
 
 function compactDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -126,7 +127,7 @@ export default function Home() {
           <p className="eyebrow">Human + agent web research</p>
           <h1>Turn web research into an evidence trail you can inspect.</h1>
           <p className="lede">
-            Create an investigation. A WebMCP-aware agent can read the same workspace, add sources and claims, and connect evidence while you stay in control of the conclusion.
+            Create an investigation. A WebMCP-aware agent can read the same workspace, add sources and claims, challenge its own conclusions, and leave every reasoning step visible to you.
           </p>
 
           <form className="create-form" onSubmit={createInvestigation}>
@@ -211,12 +212,12 @@ export default function Home() {
 
       <section className="agent-card">
         <div>
-          <p className="eyebrow">Shared agent workflow</p>
-          <h2>Research directly into the same workspace.</h2>
-          <p className="muted">Agent changes are recorded in the activity trail and appear in the UI as soon as each WebMCP tool completes.</p>
+          <p className="eyebrow">Phase 3 agent workflow</p>
+          <h2>Research, challenge, revise, compare, decide.</h2>
+          <p className="muted">The agent now has structured actions for research gaps, counterarguments, confidence changes, comparisons, and decisions—all recorded in the same workspace.</p>
         </div>
         <button className="secondary-button" type="button" onClick={copyPrompt}>
-          {copied ? "Copied" : "Copy agent prompt"}
+          {copied ? "Copied" : "Copy reasoning prompt"}
         </button>
         <pre>{AGENT_PROMPT}</pre>
       </section>
@@ -517,6 +518,8 @@ export default function Home() {
           </div>
         </section>
       ) : null}
+
+      <ReasoningDashboard workspace={workspace} actions={actions} />
 
       <div className="support-grid">
         <section className="panel">

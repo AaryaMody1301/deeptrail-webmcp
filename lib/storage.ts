@@ -41,6 +41,11 @@ function normalizeWorkspace(value: Workspace): Workspace {
     })),
     evidenceLinks: value.evidenceLinks ?? [],
     notes: value.notes ?? [],
+    researchGaps: value.researchGaps ?? [],
+    counterarguments: value.counterarguments ?? [],
+    confidenceHistory: value.confidenceHistory ?? [],
+    comparisons: value.comparisons ?? [],
+    decision: value.decision,
     activity: value.activity ?? [],
   };
 }

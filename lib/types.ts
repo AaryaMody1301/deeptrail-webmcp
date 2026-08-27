@@ -2,6 +2,14 @@ export type QuestionStatus = "open" | "answered";
 export type ClaimStance = "supports" | "contradicts" | "neutral";
 export type EvidenceRelationship = "supports" | "contradicts" | "qualifies";
 export type ActivityActor = "human" | "agent" | "system";
+export type GapPriority = "high" | "medium" | "low";
+export type GapKind =
+  | "unresolved_question"
+  | "unsupported_claim"
+  | "missing_counterevidence"
+  | "thin_provenance";
+export type CounterargumentStrength = "weak" | "moderate" | "strong";
+export type DecisionStatus = "draft" | "final";
 export type ActivityType =
   | "investigation_created"
   | "question_added"
@@ -12,7 +20,12 @@ export type ActivityType =
   | "claim_updated"
   | "evidence_linked"
   | "note_added"
-  | "note_updated";
+  | "note_updated"
+  | "research_gaps_refreshed"
+  | "counterargument_added"
+  | "confidence_updated"
+  | "comparison_added"
+  | "decision_recorded";
 
 export interface ResearchQuestion {
   id: string;
@@ -60,6 +73,64 @@ export interface ResearchNote {
   updatedAt: string;
 }
 
+export interface ResearchGap {
+  id: string;
+  key: string;
+  kind: GapKind;
+  title: string;
+  detail: string;
+  priority: GapPriority;
+  relatedId?: string;
+  createdAt: string;
+}
+
+export interface Counterargument {
+  id: string;
+  text: string;
+  strength: CounterargumentStrength;
+  targetClaimId?: string;
+  sourceIds: string[];
+  createdAt: string;
+}
+
+export interface ConfidenceChange {
+  id: string;
+  claimId: string;
+  previousConfidence: number;
+  newConfidence: number;
+  reason: string;
+  createdAt: string;
+}
+
+export interface DecisionOption {
+  id: string;
+  name: string;
+  summary: string;
+  pros: string[];
+  cons: string[];
+  score: number;
+}
+
+export interface OptionComparison {
+  id: string;
+  title: string;
+  criteria: string[];
+  options: DecisionOption[];
+  recommendation?: string;
+  rationale?: string;
+  createdAt: string;
+}
+
+export interface DecisionRecord {
+  id: string;
+  choice: string;
+  rationale: string;
+  confidence: number;
+  status: DecisionStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ActivityEntry {
   id: string;
   type: ActivityType;
@@ -80,6 +151,11 @@ export interface Workspace {
   claims: Claim[];
   evidenceLinks: EvidenceLink[];
   notes: ResearchNote[];
+  researchGaps: ResearchGap[];
+  counterarguments: Counterargument[];
+  confidenceHistory: ConfidenceChange[];
+  comparisons: OptionComparison[];
+  decision?: DecisionRecord;
   activity: ActivityEntry[];
 }
 
@@ -116,4 +192,40 @@ export interface LinkEvidenceInput {
   claimId: string;
   relationship: EvidenceRelationship;
   note?: string;
+}
+
+export interface AddCounterargumentInput {
+  text: string;
+  strength?: CounterargumentStrength;
+  targetClaimId?: string;
+  sourceIds?: string[];
+}
+
+export interface UpdateConfidenceInput {
+  claimId: string;
+  confidence: number;
+  reason: string;
+}
+
+export interface CompareOptionInput {
+  name: string;
+  summary?: string;
+  pros?: string[];
+  cons?: string[];
+  score?: number;
+}
+
+export interface CompareOptionsInput {
+  title: string;
+  criteria?: string[];
+  options: CompareOptionInput[];
+  recommendation?: string;
+  rationale?: string;
+}
+
+export interface RecordDecisionInput {
+  choice: string;
+  rationale: string;
+  confidence?: number;
+  status?: DecisionStatus;
 }
