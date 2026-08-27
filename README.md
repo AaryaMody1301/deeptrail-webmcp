@@ -1,36 +1,46 @@
 # DeepTrail
 
-**A workspace where humans and AI agents investigate the web together.**
+**A WebMCP-native workspace where humans and AI agents investigate the web together.**
 
-DeepTrail turns web research into a structured trail of questions, claims, sources, evidence, contradictions, confidence, and decisions. Instead of losing reasoning across tabs and chat threads, users keep a living research workspace that browser agents can read and update through WebMCP.
+DeepTrail turns web research into a structured trail of questions, claims, sources, evidence, contradictions, confidence, and decisions. Instead of losing reasoning across tabs and chat threads, the human and agent work against the same visible research state.
 
-## Hackathon goal
+## Why DeepTrail
 
-Build a compelling WebMCP-native research experience where an agent can:
+Most AI research interfaces optimize for producing an answer. DeepTrail optimizes for making the path to the answer inspectable: what supports it, what contradicts it, what is still unknown, and what would change the decision.
 
-1. Understand the user's current investigation.
-2. See open questions and existing claims.
-3. Add sources and evidence discovered on the web.
-4. Challenge assumptions and contradictory claims.
-5. Help the human reach an evidence-backed decision.
+The browser agent provides the intelligence and web access. DeepTrail provides the structured research state and WebMCP actions. No paid LLM or search API is required.
 
-## Core WebMCP tools
+## Phase 1 status
 
-Initial vertical slice:
+The first end-to-end vertical slice is implemented:
 
-- `deeptrail_get_workspace_context`
-- `deeptrail_get_open_questions`
-- `deeptrail_add_source`
-- `deeptrail_add_claim`
-- `deeptrail_link_evidence`
+```text
+Human creates investigation
+        ->
+Agent reads workspace through WebMCP
+        ->
+Agent researches the web
+        ->
+Agent adds source + claim
+        ->
+Agent links evidence
+        ->
+DeepTrail UI updates immediately
+```
 
-Planned:
+See [`ROADMAP.md`](./ROADMAP.md) for the six-phase hackathon plan.
 
-- `deeptrail_add_counterargument`
-- `deeptrail_identify_research_gaps`
-- `deeptrail_update_confidence`
-- `deeptrail_compare_options`
-- `deeptrail_record_decision`
+## Current WebMCP tools
+
+| Tool | Purpose |
+| --- | --- |
+| `deeptrail_get_workspace` | Read the active investigation and stable IDs |
+| `deeptrail_get_open_questions` | Read unresolved research questions |
+| `deeptrail_add_source` | Add a web source with metadata |
+| `deeptrail_add_claim` | Add a concise research claim |
+| `deeptrail_link_evidence` | Connect a source to a claim as supports / contradicts / qualifies |
+
+The implementation uses `document.modelContext.registerTool()` and an `AbortController` for clean tool lifecycle management. Read tools use `readOnlyHint`, and any tool returning human or web-derived content uses `untrustedContentHint`.
 
 ## Architecture
 
@@ -42,51 +52,49 @@ Browser Agent / ChatGPT
 document.modelContext
         |
         v
-DeepTrail WebMCP tools
+DeepTrail WebMCP bridge
         |
         v
 Research store <----> DeepTrail UI
         |
         v
-Local persistence
+IndexedDB (local-first)
 ```
 
-DeepTrail uses the browser-native `document.modelContext.registerTool()` WebMCP API. Tool registrations are owned by an `AbortController`, allowing clean lifecycle management as the workspace changes.
+## Stack
+
+- Next.js
+- React
+- TypeScript
+- Native IndexedDB
+- Browser-native WebMCP via `document.modelContext`
+- GitHub Actions CI
+
+## Run locally
+
+Requirements: Node.js 20.9+ and a browser/environment with WebMCP enabled to exercise the agent tools.
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`, create an investigation, then ask your WebMCP-aware agent:
+
+> Read the active DeepTrail investigation through its WebMCP tools. Research the primary open question on the web. Add one credible source, add one concise claim based on that source, and link the source to the claim with the correct evidence relationship. Then tell me what you added and what should be researched next.
+
+The UI still works in browsers without WebMCP and clearly reports that the capability is unavailable.
 
 ## MVP principles
 
 - Local-first
 - No paid APIs
 - No LLM API required
-- Agent provides intelligence; DeepTrail provides structured research state and actions
 - Human remains in control of conclusions
+- Web-derived and user-generated content is treated as untrusted output to agents
 - WebMCP is core product functionality, not a demo wrapper
+- Optimize every feature for the three-minute judge experience
 
-## Proposed stack
+## Hackathon
 
-- Next.js
-- TypeScript
-- React
-- Tailwind CSS
-- IndexedDB for local persistence
-- WebMCP via `document.modelContext`
-
-## First milestone
-
-```text
-Create investigation
-      ->
-Agent reads workspace through WebMCP
-      ->
-Agent researches the web
-      ->
-Agent adds source + claim
-      ->
-DeepTrail UI updates
-```
-
-Once this loop works reliably, we add the research graph, contradictions, Research Debt, Devil's Advocate mode, confidence tracking, and shareable investigations.
-
-## Status
-
-Hackathon build in progress.
+Built for the OpenAI WebMCP Challenge. The repository is public and licensed under MIT.
