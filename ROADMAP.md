@@ -99,19 +99,29 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** the core demo survives refreshes, malformed tool inputs, structurally invalid backups, duplicate/broken references, hostile instruction-like source text, unsupported WebMCP browsers, and repeated runs; the same locked dependency graph passes tests, TypeScript, and a production build.
 
-## Phase 6 — Deployment, judge experience + submission — Sep 2–3
+## Phase 6 — Deployment, judge experience + submission — Sep 2–3 🚧
 
-**Goal:** optimize for a judge seeing the value in under three minutes.
+**Goal:** optimize for a judge seeing the value in under three minutes, while leaving only account-bound publishing steps for the submitter.
 
-- Deploy a public live URL
-- Provide one-click demo investigation and exact judge testing prompt
-- Record a <3 minute demo with audio
-- Final README architecture/tool documentation
-- Devpost submission copy and screenshots
-- Run clean-browser end-to-end rehearsal
-- Freeze submitted repo and live site before the official deadline
+- [x] Evidence-backed seeded judge investigation grounded in real deployment constraints
+- [x] Dedicated `/judge` launchpad with one-click demo loading
+- [x] In-browser secure-context, WebMCP, response-header, and IndexedDB readiness diagnostics
+- [x] Exact adversarial-research judge prompt
+- [x] Persistent **Judge demo** shortcut from the product UI
+- [x] Judge-first metadata and README quick-start instructions
+- [x] Devpost-ready project description and criteria mapping in `docs/SUBMISSION.md`
+- [x] Timed 2:35 demo script in `docs/DEMO_SCRIPT.md`
+- [x] Vercel-first deployment + production WebMCP/header verification runbook in `docs/DEPLOY.md`
+- [x] Submission freeze checklist with the exact deadline
+- [ ] Deploy and verify the public production URL using the submitter's hosting account
+- [ ] Run the clean-profile ChatGPT in-app-browser rehearsal on the production origin
+- [ ] Run the Chrome 149+ production-origin rehearsal
+- [ ] Capture final submission screenshots from the verified production build
+- [ ] Record/upload the <3-minute public YouTube demo with audio
+- [ ] Paste verified live/video URLs into Devpost and complete the submission
+- [ ] Freeze the submitted repo, live site, and Devpost entry after the deadline until judging ends
 
-**Exit test:** a new reviewer can open the URL, understand the problem, execute the WebMCP interaction, and see DeepTrail's differentiator without setup help.
+**Exit test:** a new reviewer can open the production `/judge` URL, understand the problem, load the demo in one click, execute the exact WebMCP interaction, and see DeepTrail's differentiator without setup help.
 
 ## Scope rule
 
