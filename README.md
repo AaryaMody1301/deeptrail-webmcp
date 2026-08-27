@@ -10,9 +10,9 @@ Most AI research interfaces optimize for producing an answer. DeepTrail optimize
 
 The browser agent provides intelligence and web access. DeepTrail provides structured research state and WebMCP actions. No paid LLM or search API is required.
 
-## Current status — Phase 4
+## Current status — Phase 5
 
-DeepTrail now supports a full adversarial research loop:
+DeepTrail now supports the full research loop with a reliability/security layer around the shared state:
 
 ```text
 inspect workspace
@@ -36,13 +36,13 @@ record counterarguments + confidence changes
 watch Research Debt and belief move
       ↓
 compare alternatives / record a draft decision
+      ↓
+validate + back up the investigation
 ```
 
-Every step remains visible in the same interface the human is using.
+Every step remains visible in the same interface the human is using. See [`ROADMAP.md`](./ROADMAP.md) for the six-phase hackathon plan and [`docs/TEST_MATRIX.md`](./docs/TEST_MATRIX.md) for the release matrix.
 
-See [`ROADMAP.md`](./ROADMAP.md) for the six-phase hackathon plan.
-
-## Phase 4 differentiators
+## Critical-thinking differentiators
 
 ### Interactive evidence graph
 
@@ -61,37 +61,60 @@ The graph is an audit surface, not decorative AI visualization. If a relationshi
 
 DeepTrail chooses the current draft decision when one exists; otherwise it selects the strongest claim by confidence plus linked-evidence count. Starting an attack stores a local baseline and creates a targeted adversarial-research prompt.
 
-The prompt instructs the WebMCP-aware agent to:
-
-1. read the current workspace,
-2. search specifically for credible falsifying or materially qualifying evidence,
-3. add contrary/qualifying sources and claims,
-4. record counterarguments,
-5. change confidence only when evidence warrants it,
-6. refresh research gaps afterward.
-
-The UI shows baseline confidence, current confidence, and movement in percentage points.
+The prompt asks the WebMCP-aware agent to search specifically for credible falsifying or materially qualifying evidence, capture the new provenance, record counterarguments, change confidence only when evidence warrants it, and refresh research gaps afterward. The UI then shows baseline confidence, current confidence, and movement in percentage points.
 
 ### What would change my mind?
 
-The human can define explicit falsification criteria before running an attack, for example:
-
-> Migration effort exceeds two engineer-months.
-
-Criteria are stored in DeepTrail's shared research notes, so they are visible to the agent through workspace context. They can be tracked as open, met, or dismissed.
+The human can define explicit falsification criteria before running an attack. Criteria are stored in DeepTrail's shared research notes, visible to the agent through workspace context, and can be tracked as open, met, or dismissed.
 
 ### Research Debt
 
-Research Debt is deliberately deterministic. It is not an LLM-generated confidence score.
+Research Debt is deterministic rather than model-generated. It is built from unresolved questions, unsupported claims, missing counterevidence, and thin provenance. A higher score means more unresolved structural research risk, so a judge can see it improve as the agent closes gaps and attaches evidence.
 
-The score is built from four transparent components:
+## Reliability, recovery, and security
 
-- unresolved questions: up to +30
-- unsupported claims: up to +30
-- missing counterevidence: +20
-- thin provenance: up to +20
+### Validated local backups
 
-A higher score means more unresolved structural research risk. This allows a judge to see the score improve as the agent closes gaps, attaches evidence, and introduces counterevidence.
+DeepTrail exports a versioned JSON backup only after validating the workspace. Imports are limited to 2 MB and validated before IndexedDB is overwritten. Legacy Phase 1–4 workspaces are migrated forward, while malformed timestamps, invalid enums, unsafe URLs, oversized fields, duplicate IDs, and broken evidence/reasoning references are rejected.
+
+### Browser storage persistence
+
+The workspace is local-first in IndexedDB. The reliability panel reports whether the browser has granted persistent storage and lets the user explicitly call `navigator.storage.persist()` for an important investigation. JSON backups remain the portable recovery path.
+
+### Untrusted web content
+
+Externally sourced text is not treated as trusted instructions. WebMCP read/mutation tools retain `untrustedContentHint` where user/web-derived content is involved; read tools use `readOnlyHint`. DeepTrail does not opt tools into cross-origin `exposedTo` access.
+
+The UI also highlights a small set of common instruction-like patterns in stored source/research text. This is **advisory only**: regex indicators are not a prompt-injection security boundary and do not silently delete evidence.
+
+### Execution-time WebMCP validation
+
+All 11 WebMCP tools validate their actual invocation inputs with strict Zod schemas before an action runs. This is separate from the JSON Schema advertised to agents and protects against clients that bypass or violate the advertised schema.
+
+Validation rejects, among other cases:
+
+- non-http/https source URLs
+- unexpected properties
+- oversized strings/arrays
+- confidence outside `0..1`
+- malformed option comparisons
+- invalid entity IDs and broken references
+
+WebMCP tool results are compacted to stay near Chrome's recommended output budget. Registration remains state-aware and uses an `AbortController` for lifecycle cleanup.
+
+### Reproducible CI
+
+Direct dependencies are pinned and `package-lock.json` is committed. GitHub Actions uses read-only repository permissions, `actions/checkout@v7`, `actions/setup-node@v7`, Node 22, npm cache keyed by the lockfile, and `npm ci`.
+
+Every push to `main` must pass:
+
+```bash
+npm run test
+npm run typecheck
+npm run build
+```
+
+The Phase 5 suite currently contains **21 passing tests across 5 files**, covering backup/schema migration, referential integrity, malformed WebMCP inputs, Research Debt, and deterministic gap detection.
 
 ## WebMCP tools
 
@@ -99,7 +122,7 @@ A higher score means more unresolved structural research risk. This allows a jud
 
 | Tool | Purpose |
 | --- | --- |
-| `deeptrail_get_workspace_context` | Detect/read the active investigation and stable IDs |
+| `deeptrail_get_workspace_context` | Read compact active-investigation context and stable IDs |
 
 ### During an active investigation
 
@@ -107,10 +130,10 @@ A higher score means more unresolved structural research risk. This allows a jud
 | --- | --- |
 | `deeptrail_get_open_questions` | Read unresolved research questions |
 | `deeptrail_add_open_question` | Add a concrete follow-up question |
-| `deeptrail_add_source` | Add a web source with provenance metadata |
+| `deeptrail_add_source` | Add a validated web source with provenance metadata |
 | `deeptrail_add_claim` | Add a concise research claim |
 | `deeptrail_link_evidence` | Connect a source to a claim as supports / contradicts / qualifies |
-| `deeptrail_identify_research_gaps` | Derive and persist research gaps from current workspace state |
+| `deeptrail_identify_research_gaps` | Derive and persist structural research gaps |
 | `deeptrail_compare_options` | Record a structured multi-option comparison |
 | `deeptrail_record_decision` | Record/update a draft or final evidence-backed decision |
 
@@ -121,29 +144,7 @@ A higher score means more unresolved structural research risk. This allows a jud
 | `deeptrail_add_counterargument` | Challenge a claim or current line of reasoning |
 | `deeptrail_update_confidence` | Change claim confidence with a mandatory reason and history entry |
 
-Phase 4 intentionally reuses these existing single-purpose tools rather than adding an overlapping “attack” mutation tool. The attack workflow is a human-visible orchestration over the WebMCP primitives.
-
-## Reasoning model
-
-DeepTrail intentionally separates deterministic analysis from model judgment.
-
-The local application can prove structural research weaknesses such as:
-
-- unresolved questions
-- claims with no linked evidence
-- missing counterevidence
-- a thin source base
-
-The agent contributes semantic work the application cannot infer mechanically:
-
-- counterarguments
-- confidence-change rationale
-- option trade-offs
-- recommendations
-- decision rationale
-- whether new contrary evidence genuinely undermines a claim
-
-That boundary keeps heuristics inspectable and avoids presenting application logic as AI research.
+The **Attack this conclusion** workflow intentionally reuses these single-purpose primitives instead of adding an overlapping attack mutation tool.
 
 ## Architecture
 
@@ -155,26 +156,29 @@ Browser Agent / ChatGPT
 document.modelContext
         |
         v
-DeepTrail WebMCP bridge
+validated DeepTrail WebMCP bridge
         |
         v
-Research actions + reasoning objects <----> DeepTrail UI
-        |                                       |
-        |                                       +--> Evidence graph
-        |                                       +--> Research Debt
-        |                                       +--> Attack baseline
-        |                                       +--> Falsification criteria
+research actions + reasoning state <----> DeepTrail UI
+        |                                      |
+        |                                      +--> Evidence graph
+        |                                      +--> Research Debt
+        |                                      +--> Attack baseline
+        |                                      +--> Falsification criteria
+        |                                      +--> Backup / recovery
         v
-IndexedDB (local-first)
+validated IndexedDB workspace
 ```
 
 Agent mutations are tagged as `agent`; direct user edits are tagged as `human`. Research evidence remains separate from the current decision so incomplete research cannot silently become a conclusion.
 
 ## Stack
 
-- Next.js
-- React
-- TypeScript
+- Next.js 16.3.3
+- React 19.2.8
+- TypeScript 7.0.2
+- Zod 4.4.3
+- Vitest 4.1.11
 - Native IndexedDB
 - `@xyflow/react` 12.11.5 for the evidence graph
 - Browser-native WebMCP via `document.modelContext`
@@ -182,18 +186,26 @@ Agent mutations are tagged as `agent`; direct user edits are tagged as `human`. 
 
 ## Run locally
 
-Requirements: Node.js 20.9+ and a browser/environment with WebMCP enabled to exercise agent tools.
+Requirements: Node.js 22+ and a browser/environment with WebMCP enabled to exercise agent tools.
 
 ```bash
-npm install
+npm ci
 npm run dev
+```
+
+Run the same verification gate as CI with:
+
+```bash
+npm run test
+npm run typecheck
+npm run build
 ```
 
 For local Chrome WebMCP testing, enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and open `http://localhost:3000`.
 
 Create an investigation, add some evidence, then use the reasoning prompt in the UI. Once a claim or draft decision exists, use **Attack this conclusion** to copy the adversarial research prompt and measure confidence movement after the agent updates the shared workspace.
 
-The UI still works in browsers without WebMCP and clearly reports that the capability is unavailable.
+The human UI continues to work in browsers without WebMCP and clearly reports that the capability is unavailable.
 
 ## Product principles
 
@@ -204,29 +216,29 @@ The UI still works in browsers without WebMCP and clearly reports that the capab
 - Provenance is visible in the interface, not hidden in model output
 - Human and agent actions share one inspectable history
 - Agent reasoning becomes inspectable state rather than transient prose
-- Confidence can change only with a recorded reason in the reasoning workflow
+- Confidence changes require an explicit reason in the reasoning workflow
 - Decisions remain separate from evidence and can stay draft
 - Falsification criteria are defined before adversarial searching
 - Research Debt is deterministic and explainable
 - Graph edges map only to stored relationships
 - Web-derived content is treated as untrusted input
+- Backup/import validation protects the durable workspace
 - WebMCP is core product functionality, not a demo wrapper
 - Optimize every feature for the three-minute judge experience
 
 ## Web-informed implementation
 
-DeepTrail follows the current WebMCP direction: tools have explicit schemas, are registered only when relevant to current application state, and mutate the same visible UI the user is working in. The project uses the current `document.modelContext` API rather than deprecated `navigator.modelContext`.
-
-React Flow was selected after reviewing its current accessibility support: focusable nodes/edges, keyboard operation, automatic focus panning, configurable ARIA descriptions, and accessible minimap labeling. The package is MIT-licensed and pinned to `12.11.5` for the hackathon build.
+DeepTrail follows current WebMCP guidance: explicit schemas, state-relevant registration, `document.modelContext`, lifecycle cleanup, compact results, least privilege, and untrusted-content annotations. React Flow was selected for its accessible keyboard/focus support. The Phase 5 threat model is defense-in-depth: external text stays untrusted, tool calls are constrained and validated, cross-origin exposure is not enabled, and advisory injection indicators never substitute for those controls.
 
 References:
 
 - [WebMCP Community Group specification](https://webmachinelearning.github.io/webmcp/)
 - [Chrome WebMCP overview](https://developer.chrome.com/docs/ai/webmcp)
 - [Chrome WebMCP Imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api)
+- [Chrome WebMCP secure tools](https://developer.chrome.com/docs/ai/webmcp/secure-tools)
 - [Chrome WebMCP best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices)
+- [MDN Storage quotas and eviction criteria](https://developer.mozilla.org/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria)
 - [React Flow accessibility](https://reactflow.dev/learn/advanced-use/accessibility)
-- [React Flow API](https://reactflow.dev/api-reference/react-flow)
 
 ## Hackathon
 
