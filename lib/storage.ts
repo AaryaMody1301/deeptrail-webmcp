@@ -1,4 +1,5 @@
 import type { Workspace } from "@/lib/types";
+import { assertWorkspaceIntegrity } from "@/lib/workspace-integrity";
 import { validateWorkspace } from "@/lib/workspace-schema";
 
 const DATABASE_NAME = "deeptrail";
@@ -22,6 +23,10 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+function validatedWorkspace(value: unknown) {
+  return assertWorkspaceIntegrity(validateWorkspace(value));
+}
+
 export async function loadCurrentWorkspace(): Promise<Workspace | null> {
   const database = await openDatabase();
 
@@ -31,7 +36,7 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
 
     request.onsuccess = () => {
       try {
-        resolve(request.result === undefined ? null : validateWorkspace(request.result));
+        resolve(request.result === undefined ? null : validatedWorkspace(request.result));
       } catch (error: unknown) {
         reject(
           error instanceof Error
@@ -46,7 +51,7 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
 }
 
 export async function saveCurrentWorkspace(workspace: Workspace): Promise<void> {
-  const validated = validateWorkspace(workspace);
+  const validated = validatedWorkspace(workspace);
   const database = await openDatabase();
 
   return new Promise((resolve, reject) => {
