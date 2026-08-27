@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@xyflow/react": "12.11.5",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

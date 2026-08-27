@@ -1,0 +1,110 @@
+.canvas {
+  width: 100%;
+  height: 570px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #0a0d12;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.node {
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 14px !important;
+  background: #10141d !important;
+  color: var(--text) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24) !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+.node:focus-visible {
+  outline: 3px solid rgba(182, 196, 255, 0.82) !important;
+  outline-offset: 3px;
+}
+
+.nodeContent {
+  display: grid;
+  gap: 6px;
+  padding: 12px 13px;
+}
+
+.nodeContent strong {
+  line-height: 1.35;
+  font-size: 0.78rem;
+}
+
+.nodeContent small {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.nodeKind {
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.58rem;
+  font-weight: 850;
+}
+
+.sourceNode {
+  border-left: 3px solid #88a8ff !important;
+}
+
+.claimNode {
+  border-left: 3px solid #ffd27a !important;
+}
+
+.claim_supports {
+  border-left-color: #69d7a3 !important;
+}
+
+.claim_contradicts {
+  border-left-color: #ff8f8f !important;
+}
+
+.counterNode {
+  border-left: 3px solid #cf9cff !important;
+}
+
+.edge path {
+  stroke-width: 1.7;
+}
+
+.edge_supports path {
+  stroke: #69d7a3;
+}
+
+.edge_contradicts path,
+.edge_challenges path {
+  stroke: #ff8f8f;
+}
+
+.edge_qualifies path {
+  stroke: #ffd27a;
+}
+
+.empty {
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+  color: var(--muted);
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 780px) {
+  .canvas {
+    height: 500px;
+  }
+}
