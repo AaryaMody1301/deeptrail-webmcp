@@ -2,19 +2,39 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { DeepTrailActions } from "@/hooks/use-deeptrail-workspace";
-import type {
-  ClaimStance,
-  CompareOptionsInput,
-  CounterargumentStrength,
-  DecisionStatus,
-  EvidenceRelationship,
-  Workspace,
-} from "@/lib/types";
+import type { Workspace } from "@/lib/types";
+import {
+  addClaimInputSchema,
+  addCounterargumentInputSchema,
+  addQuestionInputSchema,
+  addSourceInputSchema,
+  compareOptionsInputSchema,
+  emptyInputSchema,
+  identifyGapsInputSchema,
+  linkEvidenceInputSchema,
+  parseWebMCPInput,
+  recordDecisionInputSchema,
+  updateConfidenceInputSchema,
+} from "@/lib/webmcp-inputs";
 
 export type WebMCPStatus = "checking" | "ready" | "unsupported" | "error";
 
+const TOOL_OUTPUT_BUDGET = 1400;
+
+function compactText(value: string | undefined, max = 220) {
+  if (!value) return undefined;
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
+
 function result(payload: unknown) {
-  return JSON.stringify(payload, null, 2);
+  const serialized = JSON.stringify(payload);
+  if (serialized.length <= TOOL_OUTPUT_BUDGET) return serialized;
+
+  return JSON.stringify({
+    truncated: true,
+    message: "DeepTrail compacted this tool result to stay within the WebMCP output budget. Use a narrower read tool or returned IDs for the next action.",
+    preview: serialized.slice(0, 1050),
+  });
 }
 
 export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailActions) {
@@ -52,27 +72,53 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
           name: "deeptrail_get_workspace_context",
           title: "Get DeepTrail workspace context",
           description:
-            "Read the active DeepTrail investigation, stable IDs, evidence state, and current reasoning artifacts needed for other DeepTrail actions.",
+            "Read compact context for the active DeepTrail investigation: open questions, recent source/claim IDs, evidence links, falsification criteria, decision, and counts.",
           inputSchema: { type: "object", properties: {}, additionalProperties: false },
           annotations: { readOnlyHint: true, untrustedContentHint: true },
-          execute: async () => {
+          execute: async (input) => {
+            parseWebMCPInput("deeptrail_get_workspace_context", emptyInputSchema, input);
             const current = workspaceRef.current;
             if (!current) return result({ activeInvestigation: false });
+
             return result({
               activeInvestigation: true,
               workspace: {
                 id: current.id,
-                title: current.title,
-                primaryQuestion: current.primaryQuestion,
-                questions: current.questions,
-                sources: current.sources,
-                claims: current.claims,
-                evidenceLinks: current.evidenceLinks,
-                notes: current.notes,
-                researchGaps: current.researchGaps,
-                counterarguments: current.counterarguments,
-                latestComparison: current.comparisons[0] ?? null,
-                decision: current.decision ?? null,
+                title: compactText(current.title, 120),
+                primaryQuestion: compactText(current.primaryQuestion, 240),
+                openQuestions: current.questions
+                  .filter((question) => question.status === "open")
+                  .slice(0, 4)
+                  .map((question) => ({ id: question.id, text: compactText(question.text, 180) })),
+                recentSources: current.sources.slice(0, 4).map((source) => ({
+                  id: source.id,
+                  url: source.url,
+                  title: compactText(source.title, 100),
+                  publisher: compactText(source.publisher, 60),
+                })),
+                recentClaims: current.claims.slice(0, 4).map((claim) => ({
+                  id: claim.id,
+                  text: compactText(claim.text, 180),
+                  stance: claim.stance,
+                  confidence: claim.confidence,
+                })),
+                recentEvidenceLinks: current.evidenceLinks.slice(0, 6).map((link) => ({
+                  sourceId: link.sourceId,
+                  claimId: link.claimId,
+                  relationship: link.relationship,
+                })),
+                falsificationCriteria: current.notes
+                  .filter((note) => note.title.startsWith("What would change my mind"))
+                  .slice(0, 4)
+                  .map((note) => ({ id: note.id, title: note.title, content: compactText(note.content, 180) })),
+                decision: current.decision
+                  ? {
+                      id: current.decision.id,
+                      choice: compactText(current.decision.choice, 160),
+                      confidence: current.decision.confidence,
+                      status: current.decision.status,
+                    }
+                  : null,
               },
               counts: {
                 openQuestions: current.questions.filter((question) => question.status === "open").length,
@@ -98,11 +144,16 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
               "Read unresolved research questions in the active DeepTrail investigation to choose what to investigate next.",
             inputSchema: { type: "object", properties: {}, additionalProperties: false },
             annotations: { readOnlyHint: true, untrustedContentHint: true },
-            execute: async () => {
+            execute: async (input) => {
+              parseWebMCPInput("deeptrail_get_open_questions", emptyInputSchema, input);
               const current = workspaceRef.current;
               return result({
                 workspaceId: current?.id ?? null,
-                questions: current?.questions.filter((question) => question.status === "open") ?? [],
+                questions:
+                  current?.questions
+                    .filter((question) => question.status === "open")
+                    .slice(0, 8)
+                    .map((question) => ({ id: question.id, text: compactText(question.text, 220) })) ?? [],
               });
             },
           },
@@ -110,144 +161,136 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
             name: "deeptrail_add_source",
             title: "Add a research source",
             description:
-              "Add one relevant web source to the active investigation with provenance metadata. Reusing the same normalized URL returns the existing source.",
+              "Add one relevant http/https web source with provenance metadata. Duplicate normalized URLs return the existing source.",
             inputSchema: {
               type: "object",
               properties: {
-                url: { type: "string", description: "Absolute http or https URL for the source." },
-                title: { type: "string", description: "Human-readable page or document title." },
-                publisher: { type: "string", description: "Publisher, organization, or site name when known." },
-                summary: { type: "string", description: "Short source-specific summary relevant to this investigation." },
-                publishedAt: { type: "string", description: "Publication date when the source provides one, preferably YYYY-MM-DD." },
+                url: { type: "string", maxLength: 2048, description: "Absolute http or https source URL." },
+                title: { type: "string", maxLength: 500, description: "Page or document title." },
+                publisher: { type: "string", maxLength: 300, description: "Publisher or organization." },
+                summary: { type: "string", maxLength: 8000, description: "Short source-specific research summary." },
+                publishedAt: { type: "string", maxLength: 64, description: "Publication date when known." },
               },
               required: ["url"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const source = actionsRef.current.addSource(
-                input as { url: string; title?: string; publisher?: string; summary?: string; publishedAt?: string },
-                "agent",
-              );
-              return result({ ok: true, source });
+              const typed = parseWebMCPInput("deeptrail_add_source", addSourceInputSchema, input);
+              const source = actionsRef.current.addSource(typed, "agent");
+              return result({ ok: true, source: { id: source.id, url: source.url, title: compactText(source.title, 180) } });
             },
           },
           {
             name: "deeptrail_add_claim",
             title: "Add a research claim",
             description:
-              "Add one concise claim to the active investigation with a stance and confidence estimate. Link supporting provenance separately.",
+              "Add one concise claim with stance and confidence. Add provenance separately and link the source to this claim.",
             inputSchema: {
               type: "object",
               properties: {
-                text: { type: "string", description: "A single concise claim." },
-                stance: {
-                  type: "string",
-                  enum: ["supports", "contradicts", "neutral"],
-                  description: "How the claim currently relates to the investigation's likely conclusion.",
-                },
-                confidence: {
-                  type: "number",
-                  minimum: 0,
-                  maximum: 1,
-                  description: "Current confidence from 0 to 1. Use 0.5 when uncertain.",
-                },
+                text: { type: "string", maxLength: 5000, description: "One concise factual or analytical claim." },
+                stance: { type: "string", enum: ["supports", "contradicts", "neutral"], description: "Current relation to the likely conclusion." },
+                confidence: { type: "number", minimum: 0, maximum: 1, description: "Confidence from 0 to 1." },
               },
               required: ["text"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const typed = input as { text: string; stance?: ClaimStance; confidence?: number };
+              const typed = parseWebMCPInput("deeptrail_add_claim", addClaimInputSchema, input);
               const claim = actionsRef.current.addClaim(typed, "agent");
-              return result({ ok: true, claim });
+              return result({
+                ok: true,
+                claim: {
+                  id: claim.id,
+                  text: compactText(claim.text, 260),
+                  stance: claim.stance,
+                  confidence: claim.confidence,
+                },
+              });
             },
           },
           {
             name: "deeptrail_link_evidence",
             title: "Link a source to a claim",
             description:
-              "Connect an existing DeepTrail source to an existing claim as supporting, contradicting, or qualifying evidence.",
+              "Connect an existing source to an existing claim as supporting, contradicting, or qualifying evidence.",
             inputSchema: {
               type: "object",
               properties: {
-                sourceId: { type: "string", description: "Existing DeepTrail source ID." },
-                claimId: { type: "string", description: "Existing DeepTrail claim ID." },
-                relationship: {
-                  type: "string",
-                  enum: ["supports", "contradicts", "qualifies"],
-                  description: "The evidentiary relationship between this source and claim.",
-                },
-                note: { type: "string", description: "Optional short explanation of why the source has this relationship." },
+                sourceId: { type: "string", maxLength: 128, description: "Existing DeepTrail source ID." },
+                claimId: { type: "string", maxLength: 128, description: "Existing DeepTrail claim ID." },
+                relationship: { type: "string", enum: ["supports", "contradicts", "qualifies"], description: "Evidence relationship." },
+                note: { type: "string", maxLength: 4000, description: "Optional explanation for this relationship." },
               },
               required: ["sourceId", "claimId", "relationship"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const typed = input as {
-                sourceId: string;
-                claimId: string;
-                relationship: EvidenceRelationship;
-                note?: string;
-              };
-              const evidenceLink = actionsRef.current.linkEvidence(typed, "agent");
-              return result({ ok: true, evidenceLink });
+              const typed = parseWebMCPInput("deeptrail_link_evidence", linkEvidenceInputSchema, input);
+              const link = actionsRef.current.linkEvidence(typed, "agent");
+              return result({
+                ok: true,
+                evidenceLink: {
+                  id: link.id,
+                  sourceId: link.sourceId,
+                  claimId: link.claimId,
+                  relationship: link.relationship,
+                },
+              });
             },
           },
           {
             name: "deeptrail_add_open_question",
             title: "Add an open research question",
             description:
-              "Add one concrete follow-up question that should be investigated before the current conclusion is trusted.",
+              "Add one focused follow-up question that should be investigated before the current conclusion is trusted.",
             inputSchema: {
               type: "object",
-              properties: {
-                text: { type: "string", description: "A focused unresolved research question." },
-              },
+              properties: { text: { type: "string", maxLength: 3000, description: "Focused unresolved research question." } },
               required: ["text"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const question = actionsRef.current.addQuestion(String(input.text ?? ""), "agent");
-              return result({ ok: true, question });
+              const typed = parseWebMCPInput("deeptrail_add_open_question", addQuestionInputSchema, input);
+              const question = actionsRef.current.addQuestion(typed.text, "agent");
+              return result({ ok: true, question: { id: question.id, text: compactText(question.text, 260), status: question.status } });
             },
           },
           {
             name: "deeptrail_identify_research_gaps",
             title: "Identify research gaps",
             description:
-              "Derive and persist the highest-priority gaps from DeepTrail state: unresolved questions, unsupported claims, missing counterevidence, and thin provenance.",
+              "Derive and persist structural gaps: unresolved questions, unsupported claims, missing counterevidence, and thin provenance.",
             inputSchema: {
               type: "object",
-              properties: {
-                limit: { type: "integer", minimum: 1, maximum: 12, description: "Maximum number of gaps to keep. Default 8." },
-              },
+              properties: { limit: { type: "integer", minimum: 1, maximum: 12, description: "Maximum gaps to keep; default 8." } },
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const limit = typeof input.limit === "number" ? input.limit : 8;
-              const gaps = actionsRef.current.identifyResearchGaps(limit, "agent");
-              return result({ ok: true, gaps });
+              const typed = parseWebMCPInput("deeptrail_identify_research_gaps", identifyGapsInputSchema, input);
+              const gaps = actionsRef.current.identifyResearchGaps(typed.limit ?? 8, "agent");
+              return result({
+                ok: true,
+                count: gaps.length,
+                gaps: gaps.map((gap) => ({ id: gap.id, kind: gap.kind, priority: gap.priority, title: compactText(gap.title, 120) })),
+              });
             },
           },
           {
             name: "deeptrail_compare_options",
             title: "Compare decision options",
             description:
-              "Record a structured comparison of at least two decision options, including criteria, pros, cons, scores, recommendation, and rationale.",
+              "Record a structured comparison of two to six options with criteria, pros, cons, scores, recommendation, and rationale.",
             inputSchema: {
               type: "object",
               properties: {
-                title: { type: "string", description: "What is being compared." },
-                criteria: {
-                  type: "array",
-                  items: { type: "string" },
-                  maxItems: 8,
-                  description: "Decision criteria that matter to the user.",
-                },
+                title: { type: "string", maxLength: 500, description: "What is being compared." },
+                criteria: { type: "array", items: { type: "string", maxLength: 500 }, maxItems: 8, description: "User-relevant criteria." },
                 options: {
                   type: "array",
                   minItems: 2,
@@ -255,56 +298,66 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
                   items: {
                     type: "object",
                     properties: {
-                      name: { type: "string" },
-                      summary: { type: "string" },
-                      pros: { type: "array", items: { type: "string" }, maxItems: 8 },
-                      cons: { type: "array", items: { type: "string" }, maxItems: 8 },
+                      name: { type: "string", maxLength: 500 },
+                      summary: { type: "string", maxLength: 5000 },
+                      pros: { type: "array", items: { type: "string", maxLength: 1000 }, maxItems: 8 },
+                      cons: { type: "array", items: { type: "string", maxLength: 1000 }, maxItems: 8 },
                       score: { type: "number", minimum: 0, maximum: 100 },
                     },
                     required: ["name"],
                     additionalProperties: false,
                   },
                 },
-                recommendation: { type: "string", description: "Optional recommended option name or concise recommendation." },
-                rationale: { type: "string", description: "Why the recommendation follows from the evidence and user constraints." },
+                recommendation: { type: "string", maxLength: 2000, description: "Optional concise recommendation." },
+                rationale: { type: "string", maxLength: 8000, description: "Evidence- and constraint-based rationale." },
               },
               required: ["title", "options"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const comparison = actionsRef.current.compareOptions(input as unknown as CompareOptionsInput, "agent");
-              return result({ ok: true, comparison });
+              const typed = parseWebMCPInput("deeptrail_compare_options", compareOptionsInputSchema, input);
+              const comparison = actionsRef.current.compareOptions(typed, "agent");
+              return result({
+                ok: true,
+                comparison: {
+                  id: comparison.id,
+                  title: compactText(comparison.title, 180),
+                  options: comparison.options.map((option) => ({ name: compactText(option.name, 100), score: option.score })),
+                  recommendation: compactText(comparison.recommendation, 180),
+                },
+              });
             },
           },
           {
             name: "deeptrail_record_decision",
             title: "Record an evidence-backed decision",
             description:
-              "Record or update the current draft/final decision with rationale and confidence. Use final only when the user has enough evidence to commit.",
+              "Record or update the current draft/final decision with rationale and confidence. Use final only when evidence supports commitment.",
             inputSchema: {
               type: "object",
               properties: {
-                choice: { type: "string", description: "The current decision or selected option." },
-                rationale: { type: "string", description: "Concise rationale tied to the investigation's evidence and constraints." },
+                choice: { type: "string", maxLength: 2000, description: "Current decision or selected option." },
+                rationale: { type: "string", maxLength: 8000, description: "Rationale tied to evidence and constraints." },
                 confidence: { type: "number", minimum: 0, maximum: 1, description: "Decision confidence from 0 to 1." },
-                status: { type: "string", enum: ["draft", "final"], description: "Whether this is still provisional or final." },
+                status: { type: "string", enum: ["draft", "final"], description: "Provisional or final decision." },
               },
               required: ["choice", "rationale"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const decision = actionsRef.current.recordDecision(
-                {
-                  choice: String(input.choice ?? ""),
-                  rationale: String(input.rationale ?? ""),
-                  confidence: typeof input.confidence === "number" ? input.confidence : undefined,
-                  status: input.status as DecisionStatus | undefined,
+              const typed = parseWebMCPInput("deeptrail_record_decision", recordDecisionInputSchema, input);
+              const decision = actionsRef.current.recordDecision(typed, "agent");
+              return result({
+                ok: true,
+                decision: {
+                  id: decision.id,
+                  choice: compactText(decision.choice, 220),
+                  confidence: decision.confidence,
+                  status: decision.status,
                 },
-                "agent",
-              );
-              return result({ ok: true, decision });
+              });
             },
           },
         );
@@ -316,58 +369,62 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
             name: "deeptrail_add_counterargument",
             title: "Add a counterargument",
             description:
-              "Record a strong objection or alternative explanation against an existing claim. Link source IDs when the counterargument is evidence-backed.",
+              "Record a strong objection or alternative explanation against a claim. Link existing source IDs when evidence-backed.",
             inputSchema: {
               type: "object",
               properties: {
-                text: { type: "string", description: "The strongest concise counterargument or alternative explanation." },
-                strength: { type: "string", enum: ["weak", "moderate", "strong"], description: "How materially this could change the conclusion." },
-                targetClaimId: { type: "string", description: "Existing claim ID being challenged when applicable." },
-                sourceIds: { type: "array", items: { type: "string" }, maxItems: 8, description: "Existing source IDs supporting this counterargument." },
+                text: { type: "string", maxLength: 5000, description: "Concise counterargument or alternative explanation." },
+                strength: { type: "string", enum: ["weak", "moderate", "strong"], description: "Potential to change the conclusion." },
+                targetClaimId: { type: "string", maxLength: 128, description: "Claim ID being challenged." },
+                sourceIds: { type: "array", items: { type: "string", maxLength: 128 }, maxItems: 8, description: "Existing supporting source IDs." },
               },
               required: ["text"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const counterargument = actionsRef.current.addCounterargument(
-                {
-                  text: String(input.text ?? ""),
-                  strength: input.strength as CounterargumentStrength | undefined,
-                  targetClaimId: typeof input.targetClaimId === "string" ? input.targetClaimId : undefined,
-                  sourceIds: Array.isArray(input.sourceIds) ? input.sourceIds.map(String) : undefined,
+              const typed = parseWebMCPInput("deeptrail_add_counterargument", addCounterargumentInputSchema, input);
+              const counterargument = actionsRef.current.addCounterargument(typed, "agent");
+              return result({
+                ok: true,
+                counterargument: {
+                  id: counterargument.id,
+                  strength: counterargument.strength,
+                  targetClaimId: counterargument.targetClaimId,
+                  sourceIds: counterargument.sourceIds,
                 },
-                "agent",
-              );
-              return result({ ok: true, counterargument });
+              });
             },
           },
           {
             name: "deeptrail_update_confidence",
             title: "Update claim confidence",
             description:
-              "Change an existing claim's confidence only when new evidence or counterevidence warrants it, and record the reason in confidence history.",
+              "Change an existing claim's confidence only when evidence warrants it, and persist an explicit reason in confidence history.",
             inputSchema: {
               type: "object",
               properties: {
-                claimId: { type: "string", description: "Existing claim ID." },
+                claimId: { type: "string", maxLength: 128, description: "Existing claim ID." },
                 confidence: { type: "number", minimum: 0, maximum: 1, description: "New confidence from 0 to 1." },
-                reason: { type: "string", description: "Why the evidence justifies this confidence change." },
+                reason: { type: "string", maxLength: 5000, description: "Why evidence justifies the change." },
               },
               required: ["claimId", "confidence", "reason"],
               additionalProperties: false,
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const change = actionsRef.current.updateConfidence(
-                {
-                  claimId: String(input.claimId ?? ""),
-                  confidence: Number(input.confidence),
-                  reason: String(input.reason ?? ""),
+              const typed = parseWebMCPInput("deeptrail_update_confidence", updateConfidenceInputSchema, input);
+              const change = actionsRef.current.updateConfidence(typed, "agent");
+              return result({
+                ok: true,
+                change: {
+                  id: change.id,
+                  claimId: change.claimId,
+                  previousConfidence: change.previousConfidence,
+                  newConfidence: change.newConfidence,
+                  reason: compactText(change.reason, 280),
                 },
-                "agent",
-              );
-              return result({ ok: true, change });
+              });
             },
           },
         );
