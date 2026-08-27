@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "Origin-Agent-Cluster", value: "?1" },
-          { key: "Permissions-Policy", value: "tools=(self)" },
+          { key: "Permissions-Policy", value: "tools=(self), camera=(), microphone=(), geolocation=()" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
     ];
