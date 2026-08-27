@@ -226,7 +226,7 @@ npm run typecheck
 npm run build
 ```
 
-The reliability suite contains **21 regression tests across 5 files** covering workspace migration/backups, referential integrity, malformed WebMCP inputs, deterministic Research Debt, and research-gap derivation.
+The reliability suite contains **24 regression tests across 6 files** covering workspace migration/backups, referential integrity, malformed WebMCP inputs, deterministic Research Debt, research-gap derivation, and the seeded judge workspace.
 
 ## Product principles
 
