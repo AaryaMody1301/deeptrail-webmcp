@@ -75,20 +75,29 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** a judge can see the evidence relationships, define a falsification criterion, start an attack against the strongest conclusion, ask the agent to search deliberately for contrary evidence, and watch confidence/Research Debt change as the shared workspace is updated.
 
-## Phase 5 — Reliability, security, export + test matrix — Aug 31–Sep 1
+## Phase 5 — Reliability, security, export + test matrix — Aug 31–Sep 1 ✅
 
-**Goal:** make the demo trustworthy and resilient.
+**Goal:** make the demo recoverable, constrained, reproducible, and resilient to malformed or adversarial inputs.
 
-- Treat web-derived content as untrusted input
-- Defensive URL/schema validation and safe rendering
-- Tool cancellation/lifecycle tests
-- Persistence recovery and backup/export to JSON
-- Import a saved investigation
-- Browser/WebMCP compatibility checks
-- Accessibility and mobile pass
-- Automated unit/integration coverage for the research store and tools
+- [x] Strict versioned workspace schema with text, array, enum, timestamp, and URL bounds
+- [x] Backward-compatible migration for Phase 1–4 IndexedDB workspaces
+- [x] Referential-integrity validation for evidence, claims, sources, gaps, counterarguments, and confidence history
+- [x] Versioned JSON backup export and validate-before-overwrite import
+- [x] 2 MB backup import limit and malformed/corrupt backup rejection
+- [x] Browser persistent-storage status and explicit `navigator.storage.persist()` request
+- [x] Web-derived content remains untrusted; advisory instruction-like-content indicators are surfaced for human review
+- [x] `readOnlyHint` / `untrustedContentHint` retained on WebMCP tools and no cross-origin `exposedTo` opt-in
+- [x] Execution-time Zod validation for all 11 WebMCP tools instead of relying only on advertised JSON Schema
+- [x] Strict rejection of unexpected properties, unsafe URLs, oversized inputs, malformed comparisons, and invalid confidence ranges
+- [x] Compact WebMCP context/results kept around Chrome's recommended tool-output budget
+- [x] AbortController registration lifecycle preserved; current local mutations are synchronous and require no long-running execution cancellation path
+- [x] Response hardening: origin isolation, same-origin tools policy, disabled camera/microphone/geolocation, `nosniff`, strict-origin referrer policy
+- [x] Automated regression tests for schema/backup migration, Research Debt, gap detection, WebMCP inputs, and workspace referential integrity
+- [x] Clean-browser / WebMCP / hostile-content / backup / responsive manual matrix in `docs/TEST_MATRIX.md`
+- [x] Direct dependencies pinned, `package-lock.json` committed, Vitest native ESM config, GitHub Actions v7, read-only CI permissions, and deterministic `npm ci`
+- [x] Next 16 TypeScript configuration committed so production builds no longer rewrite it only inside CI
 
-**Exit test:** the core demo survives refreshes, malformed tool inputs, duplicate sources, unsupported browsers, and repeated agent calls.
+**Exit test:** the core demo survives refreshes, malformed tool inputs, structurally invalid backups, duplicate/broken references, hostile instruction-like source text, unsupported WebMCP browsers, and repeated runs; the same locked dependency graph passes tests, TypeScript, and a production build.
 
 ## Phase 6 — Deployment, judge experience + submission — Sep 2–3
 
