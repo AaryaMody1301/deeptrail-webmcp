@@ -58,18 +58,22 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** the agent can inspect current state, identify missing research, deliberately challenge a claim, change confidence with an explicit reason, compare alternatives, and record a draft/final decision while every action remains visible and reversible in the shared workspace.
 
-## Phase 4 — Evidence graph + critical-thinking modes — Aug 30
+## Phase 4 — Evidence graph + critical-thinking modes — Aug 30 ✅
 
-**Goal:** create the memorable differentiator.
+**Goal:** create the memorable differentiator and turn adversarial research into a visible interaction.
 
-- Interactive claim/source/evidence graph
-- Supports / contradicts / qualifies relationships
-- **Attack this conclusion** workflow
-- **What would change my mind?** criteria
-- Research Debt score for unresolved gaps and weakly supported claims
-- Confidence history visualization and conclusion-change narrative
+- [x] Interactive source / claim / counterargument evidence graph
+- [x] Graph edges reflect real supports / contradicts / qualifies / challenges relationships
+- [x] Keyboard-focusable graph nodes and edges with minimap, controls, and automatic focus panning
+- [x] **Attack this conclusion** workflow with a stored confidence baseline
+- [x] Attack prompt targets falsifying / qualifying evidence instead of generic disagreement
+- [x] **What would change my mind?** criteria stored in shared research context
+- [x] Deterministic Research Debt score with transparent component breakdown
+- [x] Before/after confidence movement visible during an attack session
+- [x] No additional paid APIs or model calls; Phase 4 coordinates the existing WebMCP reasoning tools
+- [x] React Flow dependency pinned for reproducibility
 
-**Exit test:** a judge can watch a conclusion change after contradictory evidence is intentionally searched for and added.
+**Exit test:** a judge can see the evidence relationships, define a falsification criterion, start an attack against the strongest conclusion, ask the agent to search deliberately for contrary evidence, and watch confidence/Research Debt change as the shared workspace is updated.
 
 ## Phase 5 — Reliability, security, export + test matrix — Aug 31–Sep 1
 
