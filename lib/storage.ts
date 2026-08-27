@@ -1,4 +1,5 @@
 import type { Workspace } from "@/lib/types";
+import { validateWorkspace } from "@/lib/workspace-schema";
 
 const DATABASE_NAME = "deeptrail";
 const DATABASE_VERSION = 1;
@@ -21,35 +22,6 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-function normalizeWorkspace(value: Workspace): Workspace {
-  const fallbackTimestamp = value.updatedAt || value.createdAt || new Date().toISOString();
-
-  return {
-    ...value,
-    questions: (value.questions ?? []).map((question) => ({
-      ...question,
-      updatedAt: question.updatedAt ?? question.createdAt ?? fallbackTimestamp,
-    })),
-    sources: (value.sources ?? []).map((source) => ({
-      ...source,
-      accessedAt: source.accessedAt ?? source.createdAt ?? fallbackTimestamp,
-      updatedAt: source.updatedAt ?? source.createdAt ?? fallbackTimestamp,
-    })),
-    claims: (value.claims ?? []).map((claim) => ({
-      ...claim,
-      updatedAt: claim.updatedAt ?? claim.createdAt ?? fallbackTimestamp,
-    })),
-    evidenceLinks: value.evidenceLinks ?? [],
-    notes: value.notes ?? [],
-    researchGaps: value.researchGaps ?? [],
-    counterarguments: value.counterarguments ?? [],
-    confidenceHistory: value.confidenceHistory ?? [],
-    comparisons: value.comparisons ?? [],
-    decision: value.decision,
-    activity: value.activity ?? [],
-  };
-}
-
 export async function loadCurrentWorkspace(): Promise<Workspace | null> {
   const database = await openDatabase();
 
@@ -58,8 +30,15 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
     const request = transaction.objectStore(STORE_NAME).get(CURRENT_WORKSPACE_KEY);
 
     request.onsuccess = () => {
-      const saved = request.result as Workspace | undefined;
-      resolve(saved ? normalizeWorkspace(saved) : null);
+      try {
+        resolve(request.result === undefined ? null : validateWorkspace(request.result));
+      } catch (error: unknown) {
+        reject(
+          error instanceof Error
+            ? new Error(`Stored DeepTrail workspace failed validation: ${error.message}`)
+            : new Error("Stored DeepTrail workspace failed validation."),
+        );
+      }
     };
     request.onerror = () => reject(request.error ?? new Error("Unable to load the workspace."));
     transaction.oncomplete = () => database.close();
@@ -67,11 +46,12 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
 }
 
 export async function saveCurrentWorkspace(workspace: Workspace): Promise<void> {
+  const validated = validateWorkspace(workspace);
   const database = await openDatabase();
 
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(workspace, CURRENT_WORKSPACE_KEY);
+    transaction.objectStore(STORE_NAME).put(validated, CURRENT_WORKSPACE_KEY);
     transaction.oncomplete = () => {
       database.close();
       resolve();
