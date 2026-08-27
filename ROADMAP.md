@@ -4,7 +4,7 @@ DeepTrail is being built for the OpenAI WebMCP Challenge as a local-first worksp
 
 Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at 1:30 AM IST).**
 
-## Phase 1 — Foundation + WebMCP vertical slice — Aug 27
+## Phase 1 — Foundation + WebMCP vertical slice — Aug 27 ✅
 
 **Goal:** prove the core loop end to end before adding breadth.
 
@@ -19,18 +19,23 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 **Exit test:** create an investigation, ask a WebMCP-aware agent to read it, add one source and one claim, link them, and see the UI update without a page reload.
 
-## Phase 2 — Research workspace UX — Aug 28
+## Phase 2 — Research workspace UX — Aug 28 ✅ implementation complete
 
-**Goal:** make DeepTrail useful even before advanced reasoning features.
+**Goal:** make DeepTrail useful and understandable as a human research workspace while preserving the shared human-agent state.
 
-- Multiple open questions and question status
-- Human editing of claims, sources, and notes
-- Source metadata, timestamps, deduplication, and filtering
-- Research activity trail
-- Strong empty/loading/error states
-- Keyboard-friendly responsive UI
+- [x] Multiple research questions with open/answered status
+- [x] Human editing of questions, claims, source metadata, and research notes
+- [x] Source publication/access metadata and visible provenance
+- [x] Canonical URL cleanup and source deduplication
+- [x] Search/filter controls for claims and sources
+- [x] Actor-aware research activity trail (human vs agent)
+- [x] Accessible live status announcements for dynamic mutations
+- [x] Strong empty/loading/error states and keyboard-visible focus
+- [x] Responsive layouts for narrow screens
+- [x] State-aware WebMCP registration so mutation tools only exist during an active investigation
+- [x] Backward-compatible migration of Phase 1 IndexedDB workspaces
 
-**Exit test:** a human can run a small research session and understand everything captured without reading raw JSON.
+**Exit test:** a human can run a small research session, edit the captured material, track provenance and activity, and understand everything without reading raw JSON. A WebMCP agent's mutations remain visibly attributable in the same workspace.
 
 ## Phase 3 — Agent collaboration toolset — Aug 29
 

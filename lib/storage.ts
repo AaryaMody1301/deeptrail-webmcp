@@ -21,6 +21,30 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+function normalizeWorkspace(value: Workspace): Workspace {
+  const fallbackTimestamp = value.updatedAt || value.createdAt || new Date().toISOString();
+
+  return {
+    ...value,
+    questions: (value.questions ?? []).map((question) => ({
+      ...question,
+      updatedAt: question.updatedAt ?? question.createdAt ?? fallbackTimestamp,
+    })),
+    sources: (value.sources ?? []).map((source) => ({
+      ...source,
+      accessedAt: source.accessedAt ?? source.createdAt ?? fallbackTimestamp,
+      updatedAt: source.updatedAt ?? source.createdAt ?? fallbackTimestamp,
+    })),
+    claims: (value.claims ?? []).map((claim) => ({
+      ...claim,
+      updatedAt: claim.updatedAt ?? claim.createdAt ?? fallbackTimestamp,
+    })),
+    evidenceLinks: value.evidenceLinks ?? [],
+    notes: value.notes ?? [],
+    activity: value.activity ?? [],
+  };
+}
+
 export async function loadCurrentWorkspace(): Promise<Workspace | null> {
   const database = await openDatabase();
 
@@ -28,7 +52,10 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
     const transaction = database.transaction(STORE_NAME, "readonly");
     const request = transaction.objectStore(STORE_NAME).get(CURRENT_WORKSPACE_KEY);
 
-    request.onsuccess = () => resolve((request.result as Workspace | undefined) ?? null);
+    request.onsuccess = () => {
+      const saved = request.result as Workspace | undefined;
+      resolve(saved ? normalizeWorkspace(saved) : null);
+    };
     request.onerror = () => reject(request.error ?? new Error("Unable to load the workspace."));
     transaction.oncomplete = () => database.close();
   });
