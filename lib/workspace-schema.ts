@@ -224,7 +224,7 @@ function nonEmptyString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function migrateUpdatedAt(value: unknown, fallbackTimestamp: string) {
+function migrateUpdatedAt(value: unknown, fallbackTimestamp: string): unknown {
   if (!isRecord(value)) return value;
   return {
     ...value,
@@ -235,10 +235,14 @@ function migrateUpdatedAt(value: unknown, fallbackTimestamp: string) {
   };
 }
 
-function migrateSource(value: unknown, fallbackTimestamp: string) {
+function migrateSource(value: unknown, fallbackTimestamp: string): unknown {
   if (!isRecord(value)) return value;
   return {
-    ...migrateUpdatedAt(value, fallbackTimestamp),
+    ...value,
+    updatedAt:
+      nonEmptyString(value.updatedAt) ??
+      nonEmptyString(value.createdAt) ??
+      fallbackTimestamp,
     accessedAt:
       nonEmptyString(value.accessedAt) ??
       nonEmptyString(value.createdAt) ??
