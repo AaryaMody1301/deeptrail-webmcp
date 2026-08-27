@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { DeepTrailActions } from "@/hooks/use-deeptrail-workspace";
 import type { Workspace } from "@/lib/types";
 import { CriticalThinkingDashboard } from "./critical-thinking-dashboard";
+import { ReliabilityDashboard } from "./reliability-dashboard";
 import styles from "./reasoning-dashboard.module.css";
 
 function compactDate(value: string) {
@@ -204,6 +205,7 @@ export function ReasoningDashboard({ workspace, actions }: ReasoningDashboardPro
       </section>
 
       <CriticalThinkingDashboard workspace={workspace} actions={actions} />
+      <ReliabilityDashboard workspace={workspace} />
     </>
   );
 }
