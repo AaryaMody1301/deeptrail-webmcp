@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type { Workspace } from "@/lib/types";
+import { assertWorkspaceIntegrity } from "@/lib/workspace-integrity";
 
 export const DEEPTRAIL_BACKUP_FORMAT = "deeptrail-workspace" as const;
-export const DEEPTRAIL_BACKUP_VERSION = 1 as const;
+export const DEEPTRAIL_BACKUP_VERSION = 2 as const;
 export const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
 
 const idSchema = z.string().min(1).max(128);
@@ -188,6 +189,7 @@ export const workspaceSchema = z
   .object({
     id: idSchema,
     title: requiredText(300),
+    primaryQuestionId: idSchema,
     primaryQuestion: requiredText(3000),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
@@ -205,12 +207,12 @@ export const workspaceSchema = z
   })
   .strict();
 
-const backupSchema = z
+const backupEnvelopeSchema = z
   .object({
     format: z.literal(DEEPTRAIL_BACKUP_FORMAT),
-    version: z.literal(DEEPTRAIL_BACKUP_VERSION),
+    version: z.union([z.literal(1), z.literal(DEEPTRAIL_BACKUP_VERSION)]),
     exportedAt: timestampSchema,
-    workspace: workspaceSchema,
+    workspace: z.unknown(),
   })
   .strict();
 
@@ -258,11 +260,44 @@ function migrateLegacyWorkspace(value: unknown): unknown {
     nonEmptyString(value.createdAt) ??
     new Date().toISOString();
 
+  let questions = Array.isArray(value.questions)
+    ? value.questions.map((item) => migrateUpdatedAt(item, fallbackTimestamp))
+    : [];
+  let primaryQuestion = nonEmptyString(value.primaryQuestion);
+  let primaryQuestionId = nonEmptyString(value.primaryQuestionId);
+
+  if (!primaryQuestionId) {
+    const matchingQuestion = questions.find(
+      (item) =>
+        isRecord(item) &&
+        nonEmptyString(item.id) !== undefined &&
+        nonEmptyString(item.text) === primaryQuestion,
+    );
+    const fallbackQuestion = matchingQuestion ??
+      questions.find((item) => isRecord(item) && nonEmptyString(item.id) !== undefined);
+
+    if (isRecord(fallbackQuestion)) {
+      primaryQuestionId = nonEmptyString(fallbackQuestion.id);
+      primaryQuestion = nonEmptyString(fallbackQuestion.text) ?? primaryQuestion;
+    } else if (questions.length === 0 && primaryQuestion) {
+      primaryQuestionId = "migrated-primary-question";
+      questions = [
+        {
+          id: primaryQuestionId,
+          text: primaryQuestion,
+          status: "open",
+          createdAt: fallbackTimestamp,
+          updatedAt: fallbackTimestamp,
+        },
+      ];
+    }
+  }
+
   return {
     ...value,
-    questions: Array.isArray(value.questions)
-      ? value.questions.map((item) => migrateUpdatedAt(item, fallbackTimestamp))
-      : [],
+    primaryQuestion,
+    primaryQuestionId,
+    questions,
     sources: Array.isArray(value.sources)
       ? value.sources.map((item) => migrateSource(item, fallbackTimestamp))
       : [],
@@ -293,7 +328,7 @@ export function validateWorkspace(value: unknown): Workspace {
   if (!result.success) {
     throw new Error(`Invalid DeepTrail workspace: ${validationMessage(result.error)}`);
   }
-  return result.data as Workspace;
+  return assertWorkspaceIntegrity(result.data as Workspace);
 }
 
 export function exportWorkspaceBackup(workspace: Workspace) {
@@ -323,14 +358,18 @@ export function parseWorkspaceBackup(text: string): Workspace {
   }
 
   if (isRecord(parsed) && "format" in parsed) {
-    const result = backupSchema.safeParse({
-      ...parsed,
-      workspace: migrateLegacyWorkspace(parsed.workspace),
-    });
+    const result = backupEnvelopeSchema.safeParse(parsed);
     if (!result.success) {
       throw new Error(`Invalid DeepTrail backup: ${validationMessage(result.error)}`);
     }
-    return result.data.workspace as Workspace;
+
+    try {
+      return validateWorkspace(result.data.workspace);
+    } catch (error: unknown) {
+      throw new Error(
+        `Invalid DeepTrail backup: ${error instanceof Error ? error.message : "workspace validation failed"}`,
+      );
+    }
   }
 
   return validateWorkspace(parsed);

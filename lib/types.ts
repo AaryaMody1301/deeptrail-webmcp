@@ -143,6 +143,7 @@ export interface ActivityEntry {
 export interface Workspace {
   id: string;
   title: string;
+  primaryQuestionId: string;
   primaryQuestion: string;
   createdAt: string;
   updatedAt: string;
@@ -184,7 +185,6 @@ export interface AddClaimInput {
 export interface UpdateClaimInput {
   text?: string;
   stance?: ClaimStance;
-  confidence?: number;
 }
 
 export interface LinkEvidenceInput {

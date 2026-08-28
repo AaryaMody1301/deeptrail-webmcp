@@ -9,6 +9,7 @@ export function createJudgeDemoWorkspace(): Workspace {
   return validateWorkspace({
     id: "demo-workspace-deployment",
     title: "Where should DeepTrail ship for the WebMCP Challenge?",
+    primaryQuestionId: "demo-question-primary",
     primaryQuestion:
       "Which zero-cost production host gives DeepTrail the lowest deployment risk while preserving the response headers and browser behavior required for WebMCP?",
     createdAt: timestamp,

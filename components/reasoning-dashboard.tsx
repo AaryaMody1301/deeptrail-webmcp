@@ -78,7 +78,7 @@ export function ReasoningDashboard({ workspace, actions }: ReasoningDashboardPro
               <span className={styles.count}>{workspace.researchGaps.length}</span>
             </div>
             {workspace.researchGaps.length === 0 ? (
-              <div className={styles.empty}>Run “Refresh research gaps” or ask the agent to call <code>deeptrail_identify_research_gaps</code>.</div>
+              <div className={styles.empty}>Run “Refresh research gaps” or ask the agent to call <code>deeptrail_find_research_gaps</code>.</div>
             ) : (
               <div className={styles.list}>
                 {workspace.researchGaps.map((gap) => (

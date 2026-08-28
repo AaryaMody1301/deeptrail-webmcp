@@ -42,7 +42,7 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 **Goal:** make WebMCP the product engine rather than a wrapper and turn agent reasoning into inspectable workspace state.
 
 - [x] `deeptrail_add_open_question`
-- [x] `deeptrail_identify_research_gaps`
+- [x] `deeptrail_find_research_gaps`
 - [x] `deeptrail_add_counterargument`
 - [x] `deeptrail_update_confidence`
 - [x] `deeptrail_compare_options`
@@ -101,7 +101,7 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 ## Phase 6 — Deployment, judge experience + submission — Sep 2–3 🚧
 
-**Goal:** optimize for a judge seeing the value in under three minutes, while leaving only account-bound publishing steps for the submitter.
+**Goal:** optimize for a judge seeing the value in under three minutes, while leaving only account-bound publishing steps for the submitter. Local engineering and release gates are complete; the remaining unchecked items require public hosting, browser accounts, or recording access.
 
 - [x] Evidence-backed seeded judge investigation grounded in real deployment constraints
 - [x] Dedicated `/judge` launchpad with one-click demo loading

@@ -28,4 +28,9 @@ declare global {
   interface Document {
     modelContext?: ModelContext;
   }
+
+  interface Navigator {
+    /** Legacy Chrome 149 compatibility surface; use document.modelContext for current Chrome. */
+    modelContext?: ModelContext;
+  }
 }

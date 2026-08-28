@@ -1,11 +1,17 @@
 import type { Workspace } from "@/lib/types";
-import { assertWorkspaceIntegrity } from "@/lib/workspace-integrity";
 import { validateWorkspace } from "@/lib/workspace-schema";
 
 const DATABASE_NAME = "deeptrail";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "workspace";
 const CURRENT_WORKSPACE_KEY = "current";
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueWrite(operation: () => Promise<void>): Promise<void> {
+  const operationPromise = writeQueue.then(operation, operation);
+  writeQueue = operationPromise.catch(() => undefined);
+  return operationPromise;
+}
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -24,7 +30,7 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 function validatedWorkspace(value: unknown) {
-  return assertWorkspaceIntegrity(validateWorkspace(value));
+  return validateWorkspace(value);
 }
 
 export async function loadCurrentWorkspace(): Promise<Workspace | null> {
@@ -52,29 +58,47 @@ export async function loadCurrentWorkspace(): Promise<Workspace | null> {
 
 export async function saveCurrentWorkspace(workspace: Workspace): Promise<void> {
   const validated = validatedWorkspace(workspace);
-  const database = await openDatabase();
+  return enqueueWrite(async () => {
+    const database = await openDatabase();
 
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).put(validated, CURRENT_WORKSPACE_KEY);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to save the workspace."));
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, "readwrite");
+      transaction.objectStore(STORE_NAME).put(validated, CURRENT_WORKSPACE_KEY);
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error ?? new Error("Unable to save the workspace."));
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error ?? new Error("Unable to save the workspace."));
+      };
+    });
   });
 }
 
 export async function clearCurrentWorkspace(): Promise<void> {
-  const database = await openDatabase();
+  return enqueueWrite(async () => {
+    const database = await openDatabase();
 
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, "readwrite");
-    transaction.objectStore(STORE_NAME).delete(CURRENT_WORKSPACE_KEY);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => reject(transaction.error ?? new Error("Unable to clear the workspace."));
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, "readwrite");
+      transaction.objectStore(STORE_NAME).delete(CURRENT_WORKSPACE_KEY);
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error ?? new Error("Unable to clear the workspace."));
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error ?? new Error("Unable to clear the workspace."));
+      };
+    });
   });
 }

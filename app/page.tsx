@@ -38,6 +38,7 @@ export default function Home() {
   const [stanceFilter, setStanceFilter] = useState<ClaimStance | "all">("all");
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
+  const [updatingConfidenceClaimId, setUpdatingConfidenceClaimId] = useState<string | null>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -386,17 +387,13 @@ export default function Home() {
                           actions.updateClaim(claim.id, {
                             text: formValue(data, "text"),
                             stance: formValue(data, "stance") as ClaimStance,
-                            confidence: Number(formValue(data, "confidence")) / 100,
                           }),
                         );
                         if (ok) setEditingClaimId(null);
                       }}
                     >
                       <label>Claim<textarea name="text" rows={4} defaultValue={claim.text} required /></label>
-                      <div className="form-columns">
-                        <label>Stance<select name="stance" defaultValue={claim.stance}><option value="supports">Supports</option><option value="contradicts">Contradicts</option><option value="neutral">Neutral</option></select></label>
-                        <label>Confidence %<input name="confidence" type="number" min="0" max="100" defaultValue={Math.round(claim.confidence * 100)} required /></label>
-                      </div>
+                      <label>Stance<select name="stance" defaultValue={claim.stance}><option value="supports">Supports</option><option value="contradicts">Contradicts</option><option value="neutral">Neutral</option></select></label>
                       <div className="inline-actions"><button className="small-button" type="submit">Save</button><button className="text-button" type="button" onClick={() => setEditingClaimId(null)}>Cancel</button></div>
                     </form>
                   ) : (
@@ -407,7 +404,34 @@ export default function Home() {
                         <span>{evidenceByClaim.get(claim.id) ?? 0} evidence</span>
                       </div>
                       <p className="claim-text">{claim.text}</p>
-                      <div className="card-footer"><span>Updated {compactDate(claim.updatedAt)}</span><button className="text-button" type="button" onClick={() => setEditingClaimId(claim.id)}>Edit</button></div>
+                      {updatingConfidenceClaimId === claim.id ? (
+                        <form
+                          className="stack-form confidence-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const data = new FormData(event.currentTarget);
+                            const ok = runAction(() =>
+                              actions.updateConfidence(
+                                {
+                                  claimId: claim.id,
+                                  confidence: Number(formValue(data, "confidence")) / 100,
+                                  reason: formValue(data, "reason"),
+                                },
+                                "human",
+                              ),
+                            );
+                            if (ok) setUpdatingConfidenceClaimId(null);
+                          }}
+                        >
+                          <p className="muted">Confidence changes are intentionally audited with a required reason.</p>
+                          <div className="form-columns">
+                            <label>New confidence %<input name="confidence" type="number" min="0" max="100" defaultValue={Math.round(claim.confidence * 100)} required /></label>
+                            <label>Reason<textarea name="reason" rows={2} required placeholder="What new evidence changed your belief?" /></label>
+                          </div>
+                          <div className="inline-actions"><button className="small-button" type="submit">Record confidence update</button><button className="text-button" type="button" onClick={() => setUpdatingConfidenceClaimId(null)}>Cancel</button></div>
+                        </form>
+                      ) : null}
+                      <div className="card-footer"><span>Updated {compactDate(claim.updatedAt)}</span><div className="inline-actions"><button className="text-button" type="button" onClick={() => setEditingClaimId(claim.id)}>Edit</button><button className="text-button" type="button" onClick={() => setUpdatingConfidenceClaimId(claim.id)}>Update confidence</button></div></div>
                       <code>{claim.id}</code>
                     </>
                   )}

@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deriveResearchGaps } from "@/lib/reasoning";
 import { clearCurrentWorkspace, loadCurrentWorkspace, saveCurrentWorkspace } from "@/lib/storage";
+import {
+  applyClaimUpdate,
+  applyConfidenceUpdate,
+  applyQuestionUpdate,
+  MAX_ACTIVITY_ENTRIES,
+} from "@/lib/workspace-edit-invariants";
 import type {
   ActivityActor,
   ActivityEntry,
@@ -29,8 +35,6 @@ import type {
   Workspace,
 } from "@/lib/types";
 
-const MAX_ACTIVITY_ENTRIES = 120;
-const MAX_REASONING_HISTORY = 80;
 const TRACKING_PARAMETERS = [
   "utm_source",
   "utm_medium",
@@ -180,6 +184,7 @@ export function useDeepTrailWorkspace() {
       const next: Workspace = {
         id: id(),
         title: cleanTitle,
+        primaryQuestionId: question.id,
         primaryQuestion: cleanQuestion,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -239,22 +244,9 @@ export function useDeepTrailWorkspace() {
     ) => {
       const current = workspaceRef.current;
       if (!current) throw new Error("No active investigation.");
-      const existing = current.questions.find((question) => question.id === questionId);
-      if (!existing) throw new Error(`Unknown questionId: ${questionId}`);
-      const text = patch.text === undefined ? existing.text : patch.text.trim();
-      if (!text) throw new Error("Question text cannot be empty.");
-      const updated: ResearchQuestion = {
-        ...existing,
-        text,
-        status: patch.status ?? existing.status,
-        updatedAt: now(),
-      };
-      const next = withActivity(
-        { ...current, questions: current.questions.map((question) => (question.id === questionId ? updated : question)) },
-        activity("question_updated", actor, `Updated research question: ${updated.text}`, questionId),
-      );
-      commitWorkspace(next, "Research question updated.");
-      return updated;
+      const result = applyQuestionUpdate(current, questionId, patch, actor);
+      commitWorkspace(result.workspace, "Research question updated.");
+      return result.value;
     },
     [commitWorkspace],
   );
@@ -352,23 +344,9 @@ export function useDeepTrailWorkspace() {
     (claimId: string, patch: UpdateClaimInput, actor: ActivityActor = "human") => {
       const current = workspaceRef.current;
       if (!current) throw new Error("No active investigation.");
-      const existing = current.claims.find((claim) => claim.id === claimId);
-      if (!existing) throw new Error(`Unknown claimId: ${claimId}`);
-      const text = patch.text === undefined ? existing.text : patch.text.trim();
-      if (!text) throw new Error("Claim text cannot be empty.");
-      const updated: Claim = {
-        ...existing,
-        text,
-        stance: patch.stance ?? existing.stance,
-        confidence: patch.confidence === undefined ? existing.confidence : clamp(patch.confidence, 0, 1),
-        updatedAt: now(),
-      };
-      const next = withActivity(
-        { ...current, claims: current.claims.map((claim) => (claim.id === claimId ? updated : claim)) },
-        activity("claim_updated", actor, `Updated claim: ${updated.text}`, claimId),
-      );
-      commitWorkspace(next, "Claim updated.");
-      return updated;
+      const result = applyClaimUpdate(current, claimId, patch, actor);
+      commitWorkspace(result.workspace, "Claim updated.");
+      return result.value;
     },
     [commitWorkspace],
   );
@@ -530,35 +508,9 @@ export function useDeepTrailWorkspace() {
     (input: UpdateConfidenceInput, actor: ActivityActor = "agent") => {
       const current = workspaceRef.current;
       if (!current) throw new Error("Create an investigation before updating confidence.");
-      const claim = current.claims.find((item) => item.id === input.claimId);
-      if (!claim) throw new Error(`Unknown claimId: ${input.claimId}`);
-      const reason = input.reason.trim();
-      if (!reason) throw new Error("A reason is required when confidence changes.");
-      const nextConfidence = clamp(input.confidence, 0, 1);
-      const change: ConfidenceChange = {
-        id: id(),
-        claimId: claim.id,
-        previousConfidence: claim.confidence,
-        newConfidence: nextConfidence,
-        reason,
-        createdAt: now(),
-      };
-      const updatedClaim: Claim = { ...claim, confidence: nextConfidence, updatedAt: change.createdAt };
-      const next = withActivity(
-        {
-          ...current,
-          claims: current.claims.map((item) => (item.id === claim.id ? updatedClaim : item)),
-          confidenceHistory: [change, ...current.confidenceHistory].slice(0, MAX_REASONING_HISTORY),
-        },
-        activity(
-          "confidence_updated",
-          actor,
-          `Changed claim confidence from ${Math.round(claim.confidence * 100)}% to ${Math.round(nextConfidence * 100)}%.`,
-          claim.id,
-        ),
-      );
-      commitWorkspace(next, "Claim confidence updated with rationale.");
-      return change;
+      const result = applyConfidenceUpdate(current, input, actor);
+      commitWorkspace(result.workspace, "Claim confidence updated with rationale.");
+      return result.value;
     },
     [commitWorkspace],
   );

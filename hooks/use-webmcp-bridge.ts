@@ -16,6 +16,7 @@ import {
   recordDecisionInputSchema,
   updateConfidenceInputSchema,
 } from "@/lib/webmcp-inputs";
+import { registerWebMCPTools, selectWebMCPContext } from "@/lib/webmcp-registration";
 
 export type WebMCPStatus = "checking" | "ready" | "unsupported" | "error";
 
@@ -55,28 +56,35 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
   }, [actions]);
 
   useEffect(() => {
-    const modelContext = document.modelContext;
+    const { context: modelContext } = selectWebMCPContext(
+      document.modelContext,
+      // Legacy Chrome 149 compatibility only. Current Chrome uses document.modelContext.
+      navigator.modelContext,
+    );
     if (!modelContext?.registerTool) {
       setStatus("unsupported");
+      setError(null);
       setRegisteredToolCount(0);
       return;
     }
 
     const controller = new AbortController();
+    let cancelled = false;
     setStatus("checking");
     setError(null);
+    setRegisteredToolCount(0);
 
     const register = async () => {
       const tools: WebMCPToolDefinition[] = [
         {
-          name: "deeptrail_get_workspace_context",
+          name: "deeptrail_get_context",
           title: "Get DeepTrail workspace context",
           description:
             "Read compact context for the active DeepTrail investigation: open questions, recent source/claim IDs, evidence links, falsification criteria, decision, and counts.",
           inputSchema: { type: "object", properties: {}, additionalProperties: false },
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute: async (input) => {
-            parseWebMCPInput("deeptrail_get_workspace_context", emptyInputSchema, input);
+            parseWebMCPInput("deeptrail_get_context", emptyInputSchema, input);
             const current = workspaceRef.current;
             if (!current) return result({ activeInvestigation: false });
 
@@ -261,7 +269,7 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
             },
           },
           {
-            name: "deeptrail_identify_research_gaps",
+            name: "deeptrail_find_research_gaps",
             title: "Identify research gaps",
             description:
               "Derive and persist structural gaps: unresolved questions, unsupported claims, missing counterevidence, and thin provenance.",
@@ -272,7 +280,7 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
             },
             annotations: { readOnlyHint: false, untrustedContentHint: true },
             execute: async (input) => {
-              const typed = parseWebMCPInput("deeptrail_identify_research_gaps", identifyGapsInputSchema, input);
+              const typed = parseWebMCPInput("deeptrail_find_research_gaps", identifyGapsInputSchema, input);
               const gaps = actionsRef.current.identifyResearchGaps(typed.limit ?? 8, "agent");
               return result({
                 ok: true,
@@ -430,21 +438,24 @@ export function useWebMCPBridge(workspace: Workspace | null, actions: DeepTrailA
         );
       }
 
-      for (const tool of tools) {
-        await modelContext.registerTool(tool, { signal: controller.signal });
-      }
+      const registeredCount = await registerWebMCPTools(modelContext, tools, controller.signal);
+      if (cancelled || controller.signal.aborted || registeredCount !== tools.length) return;
       setRegisteredToolCount(tools.length);
       setStatus("ready");
     };
 
     register().catch((registrationError: unknown) => {
-      if (controller.signal.aborted) return;
+      if (cancelled || controller.signal.aborted) return;
+      controller.abort();
       setError(registrationError instanceof Error ? registrationError.message : "WebMCP tool registration failed.");
       setRegisteredToolCount(0);
       setStatus("error");
     });
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [hasWorkspace, hasClaims]);
 
   return { status, error, registeredToolCount };

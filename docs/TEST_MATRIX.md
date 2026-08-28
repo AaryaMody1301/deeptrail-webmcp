@@ -1,12 +1,14 @@
-# DeepTrail Phase 5 Test Matrix
+# DeepTrail Release Test Matrix
 
-This matrix is the release gate for the hackathon build. Automated tests run in GitHub Actions; browser/WebMCP checks are manual because WebMCP is experimental and primarily designed for local, human-in-the-loop browser workflows.
+This matrix is the release gate for the hackathon build. The automated suite currently contains **42 tests across 8 files** and runs in GitHub Actions; browser/WebMCP checks are manual because WebMCP is experimental and designed for human-in-the-loop browser workflows.
 
 ## Supported judge paths
 
 1. **ChatGPT in-app browser** — WebMCP supported out of the box for challenge testing.
 2. **Google Chrome 149+** — enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then load the deployed DeepTrail URL.
 3. **Ordinary modern browser without WebMCP** — the human workspace must still load and clearly report WebMCP as unavailable.
+
+The bridge prefers current `document.modelContext`. Its `navigator.modelContext` branch is a narrowly isolated Chrome 149 compatibility fallback and is not the modern API path.
 
 ## Automated CI gate
 
@@ -21,6 +23,9 @@ The regression suite covers:
 - workspace schema validation
 - versioned backup export/import round trips
 - Phase 1-style workspace migration
+- primary-question identity and denormalized-text synchronization
+- confidence-history and actor-attribution invariants
+- awaited WebMCP registration and abort lifecycle
 - rejection of non-http/https source URLs
 - backup size limits
 - oversized stored text rejection
@@ -34,9 +39,9 @@ The regression suite covers:
 | Scenario | Expected result |
 | --- | --- |
 | Fresh visit | No investigation; DeepTrail renders without stored state errors |
-| No active investigation | Only `deeptrail_get_workspace_context` is registered |
-| Investigation created, no claims | State-relevant research tools become available |
-| Claim added | Claim-specific counterargument/confidence tools become available |
+| No active investigation | Exactly 1 tool, `deeptrail_get_context`, is registered |
+| Investigation created, no claims | Exactly 9 state-relevant research tools are registered |
+| Claim added | Exactly 11 tools, including claim-specific counterargument/confidence tools, are registered |
 | Agent adds source | Source appears immediately; URL must be http/https |
 | Duplicate tracked URL | Existing normalized source is reused rather than duplicated |
 | Agent adds claim | Claim appears immediately with stance/confidence |
@@ -63,7 +68,7 @@ Use the Model Context Tool Inspector or a WebMCP-aware agent to verify:
 - tool descriptions are distinguishable and single-purpose;
 - the agent reads context before mutating the workspace;
 - externally sourced content is not treated as trusted instructions;
-- `deeptrail_identify_research_gaps` is chosen for structural gaps rather than inventing a prose gap list;
+- `deeptrail_find_research_gaps` is chosen for structural gaps rather than inventing a prose gap list;
 - confidence changes use `deeptrail_update_confidence` only with an explicit evidence-based reason;
 - **Attack this conclusion** seeks falsifying/qualifying evidence rather than manufacturing disagreement;
 - tool results remain compact enough for reliable agent consumption.

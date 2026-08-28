@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createJudgeDemoWorkspace, JUDGE_AGENT_PROMPT } from "@/lib/demo-workspace";
 import { loadCurrentWorkspace, saveCurrentWorkspace } from "@/lib/storage";
+import { selectWebMCPContext, type WebMCPApiSource } from "@/lib/webmcp-registration";
 import styles from "./judge.module.css";
 
 type CheckStatus = "checking" | "pass" | "warn" | "fail";
@@ -16,18 +17,24 @@ interface ReadinessCheck {
 interface BrowserReadiness {
   secureContext: boolean | null;
   webmcp: boolean | null;
+  webmcpApi: WebMCPApiSource | null;
   indexedDb: boolean | null;
   originAgentCluster: string | null;
   permissionsPolicy: string | null;
+  contentTypeOptions: string | null;
+  referrerPolicy: string | null;
   headerError: string | null;
 }
 
 const initialReadiness: BrowserReadiness = {
   secureContext: null,
   webmcp: null,
+  webmcpApi: null,
   indexedDb: null,
   originAgentCluster: null,
   permissionsPolicy: null,
+  contentTypeOptions: null,
+  referrerPolicy: null,
   headerError: null,
 };
 
@@ -47,30 +54,34 @@ export default function JudgePage() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     const secureContext = window.isSecureContext;
-    const webmcp = Boolean(document.modelContext);
+    const webmcpContext = selectWebMCPContext(document.modelContext, navigator.modelContext);
     const indexedDb = "indexedDB" in window;
 
     setReadiness((current) => ({
       ...current,
       secureContext,
-      webmcp,
+      webmcp: Boolean(webmcpContext.context),
+      webmcpApi: webmcpContext.source,
       indexedDb,
     }));
 
-    fetch("/", { method: "HEAD", cache: "no-store" })
+    fetch(window.location.pathname, { method: "HEAD", cache: "no-store", signal: controller.signal })
       .then((response) => {
         if (cancelled) return;
         setReadiness((current) => ({
           ...current,
           originAgentCluster: response.headers.get("origin-agent-cluster"),
           permissionsPolicy: response.headers.get("permissions-policy"),
+          contentTypeOptions: response.headers.get("x-content-type-options"),
+          referrerPolicy: response.headers.get("referrer-policy"),
           headerError: null,
         }));
       })
       .catch((reason: unknown) => {
-        if (cancelled) return;
+        if (cancelled || controller.signal.aborted) return;
         setReadiness((current) => ({
           ...current,
           headerError: reason instanceof Error ? reason.message : "Response headers could not be checked.",
@@ -79,6 +90,7 @@ export default function JudgePage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
@@ -103,7 +115,9 @@ export default function JudgePage() {
           readiness.webmcp === null
             ? "Checking document.modelContext."
             : readiness.webmcp
-              ? "document.modelContext is available in this browser."
+              ? readiness.webmcpApi === "navigator"
+                ? "Legacy navigator.modelContext compatibility is available for Chrome 149; current Chrome uses document.modelContext."
+                : "document.modelContext is available in this browser."
               : "Open this page in ChatGPT's in-app browser or Chrome 149+ with chrome://flags/#enable-webmcp-testing enabled.",
         status: readiness.webmcp === null ? "checking" : readiness.webmcp ? "pass" : "warn",
       },
@@ -138,6 +152,42 @@ export default function JudgePage() {
           : readiness.permissionsPolicy === null
             ? "checking"
             : toolsPolicyReady
+              ? "pass"
+              : "fail",
+      },
+      {
+        label: "Content type protection",
+        detail:
+          readiness.headerError
+            ? "The response-header check could not complete."
+            : readiness.contentTypeOptions === null
+              ? "Checking X-Content-Type-Options."
+              : readiness.contentTypeOptions.toLowerCase() === "nosniff"
+                ? "X-Content-Type-Options: nosniff is present."
+                : `Expected nosniff; received ${readiness.contentTypeOptions}.`,
+        status: readiness.headerError
+          ? "warn"
+          : readiness.contentTypeOptions === null
+            ? "checking"
+            : readiness.contentTypeOptions.toLowerCase() === "nosniff"
+              ? "pass"
+              : "fail",
+      },
+      {
+        label: "Referrer protection",
+        detail:
+          readiness.headerError
+            ? "The response-header check could not complete."
+            : readiness.referrerPolicy === null
+              ? "Checking Referrer-Policy."
+              : readiness.referrerPolicy.toLowerCase() === "strict-origin-when-cross-origin"
+                ? "Referrer-Policy uses strict-origin-when-cross-origin."
+                : `Expected strict-origin-when-cross-origin; received ${readiness.referrerPolicy}.`,
+        status: readiness.headerError
+          ? "warn"
+          : readiness.referrerPolicy === null
+            ? "checking"
+            : readiness.referrerPolicy.toLowerCase() === "strict-origin-when-cross-origin"
               ? "pass"
               : "fail",
       },
