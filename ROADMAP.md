@@ -2,6 +2,8 @@
 
 DeepTrail is being built for the OpenAI WebMCP Challenge as a local-first workspace where a human and an AI agent investigate the web together.
 
+Production host: [Netlify](https://deeptrail-webmcp.netlify.app). Judge route: [https://deeptrail-webmcp.netlify.app/judge](https://deeptrail-webmcp.netlify.app/judge).
+
 Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at 1:30 AM IST).**
 
 ## Phase 1 — Foundation + WebMCP vertical slice — Aug 27 ✅
@@ -101,7 +103,7 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 
 ## Phase 6 — Deployment, judge experience + submission — Sep 2–3 🚧
 
-**Goal:** optimize for a judge seeing the value in under three minutes, while leaving only account-bound publishing steps for the submitter. Local engineering and release gates are complete; the remaining unchecked items require public hosting, browser accounts, or recording access.
+**Goal:** optimize for a judge seeing the value in under three minutes, while leaving only the remaining account-bound submission assets for the submitter. Local engineering and production HTTP/header/WebMCP release gates are complete.
 
 - [x] Evidence-backed seeded judge investigation grounded in real deployment constraints
 - [x] Dedicated `/judge` launchpad with one-click demo loading
@@ -111,11 +113,11 @@ Official submission deadline: **September 3, 2026 at 1:00 PM PDT (September 4 at
 - [x] Judge-first metadata and README quick-start instructions
 - [x] Devpost-ready project description and criteria mapping in `docs/SUBMISSION.md`
 - [x] Timed 2:35 demo script in `docs/DEMO_SCRIPT.md`
-- [x] Vercel-first deployment + production WebMCP/header verification runbook in `docs/DEPLOY.md`
+- [x] Netlify deployment + production WebMCP/header verification runbook in `docs/DEPLOY.md`
 - [x] Submission freeze checklist with the exact deadline
-- [ ] Deploy and verify the public production URL using the submitter's hosting account
+- [x] Deploy and verify the public production URL on the existing Netlify site
 - [ ] Run the clean-profile ChatGPT in-app-browser rehearsal on the production origin
-- [ ] Run the Chrome 149+ production-origin rehearsal
+- [x] Run the Chrome 149+ production-origin rehearsal with WebMCP enabled
 - [ ] Capture final submission screenshots from the verified production build
 - [ ] Record/upload the <3-minute public YouTube demo with audio
 - [ ] Paste verified live/video URLs into Devpost and complete the submission

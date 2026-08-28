@@ -4,13 +4,15 @@
 
 DeepTrail turns web research into shared, inspectable state: questions, sources, claims, evidence links, gaps, counterarguments, confidence changes, comparisons, falsification criteria, and decisions. Instead of losing the reasoning trail across tabs and chat history, the human and agent work against the same visible workspace.
 
+Production runs on [Netlify](https://deeptrail-webmcp.netlify.app), with [Judge mode](https://deeptrail-webmcp.netlify.app/judge) as the fastest live walkthrough.
+
 > Most AI research products optimize for producing an answer. DeepTrail optimizes for showing **why the answer should be believed, what contradicts it, what is still unknown, and what evidence would change the conclusion.**
 
 ## Judge quick start
 
-DeepTrail includes a dedicated **Judge mode** at `/judge`.
+DeepTrail includes a dedicated **Judge mode** at [the live `/judge` route](https://deeptrail-webmcp.netlify.app/judge).
 
-1. Open `/judge` in ChatGPT's in-app browser or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled.
+1. Open [https://deeptrail-webmcp.netlify.app/judge](https://deeptrail-webmcp.netlify.app/judge) in ChatGPT's in-app browser or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled.
 2. Confirm the production-readiness cards for secure context, WebMCP capability, origin isolation, tools permissions policy, and IndexedDB.
 3. Click **Load evidence-backed judge demo**.
 4. Copy the exact adversarial-research prompt from the page and give it to the browser agent.
@@ -246,7 +248,7 @@ The reliability suite contains **42 regression tests across 8 files** covering w
 
 ## Current challenge status
 
-Phases 1–5 and the local Phase 6 engineering work are complete. Public production publishing, headed-browser rehearsals, screenshots, and the public YouTube upload require the submitter's hosting/YouTube account and are tracked explicitly in [`ROADMAP.md`](./ROADMAP.md).
+Phases 1–5 and the local Phase 6 engineering work are complete. The public production deployment is live on Netlify, and the production HTTP/header checks plus the headed Chrome WebMCP and seeded judge flow have been verified. Screenshots, the public YouTube upload, and Devpost completion remain tracked explicitly in [`ROADMAP.md`](./ROADMAP.md).
 
 ## References
 

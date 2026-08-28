@@ -4,9 +4,11 @@ This matrix is the release gate for the hackathon build. The automated suite cur
 
 ## Supported judge paths
 
-1. **ChatGPT in-app browser** — WebMCP supported out of the box for challenge testing.
-2. **Google Chrome 149+** — enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then load the deployed DeepTrail URL.
+1. **ChatGPT in-app browser** — WebMCP supported out of the box for challenge testing; load `https://deeptrail-webmcp.netlify.app/judge`.
+2. **Google Chrome 149+** — enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then load `https://deeptrail-webmcp.netlify.app/judge`.
 3. **Ordinary modern browser without WebMCP** — the human workspace must still load and clearly report WebMCP as unavailable.
+
+The verified production host is Netlify. The headed Chrome production check observed `document.modelContext`, 1/9/11 state-aware tools, successful agent mutations, and the seeded judge workflow; both live routes returned `200 OK` with the required response headers.
 
 The bridge prefers current `document.modelContext`. Its `navigator.modelContext` branch is a narrowly isolated Chrome 149 compatibility fallback and is not the modern API path.
 
@@ -77,8 +79,8 @@ Use the Model Context Tool Inspector or a WebMCP-aware agent to verify:
 
 Before the Devpost deadline:
 
-- verify the exact submitted live URL in ChatGPT’s in-app browser;
-- verify it in Chrome 149+ with WebMCP enabled;
+- verify `https://deeptrail-webmcp.netlify.app` and `/judge` in ChatGPT’s in-app browser;
+- [x] verify `https://deeptrail-webmcp.netlify.app/judge` in Chrome 149+ with WebMCP enabled;
 - run the full CI gate on the submitted `main` commit;
 - export/re-import the demo investigation once;
 - record the final demo video from the same deployed build;

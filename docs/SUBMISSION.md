@@ -1,6 +1,6 @@
 # DeepTrail — WebMCP Challenge Submission Package
 
-Use this file as the source of truth for the final Devpost entry. Replace `[LIVE_URL]` only after the public deployment and production judge flow are verified. Replace `[YOUTUBE_URL]` only after a public upload is verified; never invent a video URL.
+Use this file as the source of truth for the final Devpost entry. The verified production host is Netlify. Replace `[YOUTUBE_URL]` only after a public upload is verified; never invent a video URL.
 
 ## Project name
 
@@ -56,7 +56,7 @@ All calls are revalidated at execution time with strict Zod schemas. The bridge 
 
 ## Judge instructions
 
-**Live URL:** `[LIVE_URL]/judge`
+**Live URL:** `https://deeptrail-webmcp.netlify.app/judge`
 
 1. Open `/judge` in ChatGPT's in-app browser or Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled.
 2. Confirm the judge launchpad reports the secure-context and production-header checks.
@@ -69,10 +69,11 @@ The seeded investigation is intentionally about DeepTrail's own zero-cost produc
 
 ## Links
 
-- **Live app:** `[LIVE_URL]`
-- **Judge mode:** `[LIVE_URL]/judge`
+- **Live app:** `https://deeptrail-webmcp.netlify.app`
+- **Judge mode:** `https://deeptrail-webmcp.netlify.app/judge`
 - **Public repository:** `https://github.com/AaryaMody1301/deeptrail-webmcp`
 - **Demo video:** `[YOUTUBE_URL]`
+- **Production host:** Netlify (site `73752605-6358-4e69-94eb-0fa2140ba659`)
 
 ## Judging-criteria mapping
 
@@ -94,13 +95,13 @@ Instead of asking an agent for a better answer, DeepTrail asks what would falsif
 
 ## Final submission checklist
 
-- [ ] Production URL is public and free to access through the end of judging.
-- [ ] `/judge` reports secure context and required production headers.
+- [x] Production URL is public and free to access through the end of judging.
+- [x] `/judge` reports secure context and required production headers.
 - [ ] WebMCP is verified on the production origin in ChatGPT's in-app browser.
-- [ ] WebMCP is verified in Chrome 149+ with the testing flag enabled.
-- [ ] Seed demo loads in a clean browser profile.
-- [ ] Exact judge prompt results in correct tool selection and visible UI mutations.
-- [ ] Public GitHub repository contains MIT `LICENSE` and reproducible setup instructions.
+- [x] WebMCP is verified in Chrome 149+ with the testing flag enabled.
+- [x] Seed demo loads in an isolated clean browser profile.
+- [x] Exact judge prompt results in correct tool selection and visible UI mutations.
+- [x] Public GitHub repository contains MIT `LICENSE` and reproducible setup instructions.
 - [ ] Public YouTube video is under 3:00, includes audio, and demonstrates WebMCP functioning.
 - [ ] Devpost text uses the verified production and video URLs.
 - [ ] Repository, live site, and Devpost submission are frozen after September 3, 2026 at 1:00 PM PT until judging ends.
