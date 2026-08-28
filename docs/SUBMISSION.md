@@ -1,6 +1,6 @@
 # DeepTrail — WebMCP Challenge Submission Package
 
-Use this file as the source of truth for the final Devpost entry. Replace bracketed placeholders only after the production deployment and public YouTube upload are verified.
+Use this file as the source of truth for the final Devpost entry. Replace `[LIVE_URL]` only after the public deployment and production judge flow are verified. Replace `[YOUTUBE_URL]` only after a public upload is verified; never invent a video URL.
 
 ## Project name
 
@@ -44,7 +44,7 @@ The memorable workflow is **Attack this conclusion**: DeepTrail records a confid
 
 ## WebMCP implementation
 
-DeepTrail uses the imperative WebMCP API through `document.modelContext.registerTool()`.
+DeepTrail uses the imperative WebMCP API through `document.modelContext.registerTool()`. A narrowly isolated `navigator.modelContext` fallback is retained only for Chrome 149 compatibility; current Chrome uses the document-scoped API.
 
 The toolset is state-aware:
 

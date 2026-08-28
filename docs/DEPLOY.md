@@ -17,15 +17,19 @@ No environment variables or paid APIs are required by DeepTrail itself.
 
 ### CLI path
 
-If the Vercel CLI is already authenticated:
+If the Vercel CLI is already authenticated, run this from a clean checkout of the exact green `main` commit:
 
 ```bash
 npm ci
 npm run test
 npm run typecheck
 npm run build
-vercel deploy --prod
+git status --short
+git rev-parse HEAD
+vercel deploy --prod --yes
 ```
+
+Record the printed deployment URL and commit SHA. The deployment must be created from the verified commit, not from an uncommitted working tree.
 
 Do not commit Vercel tokens or `.vercel` account metadata.
 
@@ -74,7 +78,7 @@ The `/judge` page also performs these checks in-browser and shows them as readin
 3. Confirm **WebMCP browser capability** is Ready.
 4. Confirm **Origin isolation header** and **Tools permissions policy** are Ready.
 5. Click **Load evidence-backed judge demo**.
-6. Confirm the workspace reports the expected WebMCP tool count once claims are present.
+6. Confirm the workspace reports the expected WebMCP tool lifecycle: 1 tool with no workspace, 9 with an active workspace and no claims, and 11 once claims exist.
 7. Copy the exact judge prompt from `/judge` and run it.
 8. Confirm at least one agent mutation appears immediately in the DeepTrail UI with actor attribution.
 
@@ -83,7 +87,7 @@ The `/judge` page also performs these checks in-browser and shows them as readin
 1. Install Chrome 149 or later.
 2. Open `chrome://flags/#enable-webmcp-testing`.
 3. Enable the flag and relaunch Chrome.
-4. Open the production `/judge` URL.
+4. Open the production `/judge` URL. Current Chrome should expose `document.modelContext`; DeepTrail only checks `navigator.modelContext` as a legacy Chrome 149 fallback.
 5. Repeat the seeded-demo and exact-prompt flow.
 
 ## 6. Clean-profile rehearsal

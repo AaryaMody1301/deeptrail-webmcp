@@ -5,6 +5,7 @@ export function createWorkspaceFixture(): Workspace {
   return {
     id: "workspace-1",
     title: "ClickHouse vs BigQuery",
+    primaryQuestionId: "question-1",
     primaryQuestion: "Which platform best fits a two-engineer analytics team?",
     createdAt: now,
     updatedAt: now,

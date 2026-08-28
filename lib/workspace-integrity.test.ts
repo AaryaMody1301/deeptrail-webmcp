@@ -48,4 +48,18 @@ describe("assertWorkspaceIntegrity", () => {
 
     expect(() => assertWorkspaceIntegrity(workspace)).toThrow(/unknown claimId/i);
   });
+
+  it("rejects an unknown primary question identity", () => {
+    const workspace = createWorkspaceFixture();
+    workspace.primaryQuestionId = "missing-question";
+
+    expect(() => assertWorkspaceIntegrity(workspace)).toThrow(/primary question ID/i);
+  });
+
+  it("rejects a primary question text mismatch", () => {
+    const workspace = createWorkspaceFixture();
+    workspace.primaryQuestion = "A different question";
+
+    expect(() => assertWorkspaceIntegrity(workspace)).toThrow(/primary question text/i);
+  });
 });

@@ -20,6 +20,14 @@ export function assertWorkspaceIntegrity(workspace: Workspace): Workspace {
   assertUniqueIds("confidence change", workspace.confidenceHistory);
   assertUniqueIds("comparison", workspace.comparisons);
 
+  const primaryQuestion = workspace.questions.find((question) => question.id === workspace.primaryQuestionId);
+  if (!primaryQuestion) {
+    throw new Error(`Primary question ID does not reference a question: ${workspace.primaryQuestionId}`);
+  }
+  if (primaryQuestion.text !== workspace.primaryQuestion) {
+    throw new Error("Primary question text does not match the referenced question.");
+  }
+
   for (const link of workspace.evidenceLinks) {
     if (!sourceIds.has(link.sourceId)) {
       throw new Error(`Evidence link ${link.id} references unknown sourceId: ${link.sourceId}`);

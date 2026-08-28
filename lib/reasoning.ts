@@ -31,7 +31,7 @@ export function deriveResearchGaps(workspace: Workspace, limit = 8): ResearchGap
         kind: "unresolved_question",
         title: "Open research question",
         detail: question.text,
-        priority: question.text === workspace.primaryQuestion ? "high" : "medium",
+        priority: question.id === workspace.primaryQuestionId ? "high" : "medium",
         relatedId: question.id,
       }),
     );

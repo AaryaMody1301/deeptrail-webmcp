@@ -63,6 +63,8 @@ DeepTrail is not a chatbot with a tool bolted on. The product depends on the hum
 
 WebMCP provides explicit contracts for the research domain model. The agent does not need to infer which button edits a claim or which DOM card represents a source. DeepTrail exposes precise operations with stable entity IDs and validates every invocation before mutating local state.
 
+DeepTrail registers through the current `document.modelContext` surface. It keeps a narrowly isolated `navigator.modelContext` fallback only for Chrome 149 compatibility; the legacy branch is never preferred and `navigator.modelContextTesting` is not used.
+
 This gives the collaboration properties DeepTrail needs:
 
 - **Discovery:** the browser agent can discover exactly which actions are valid now.
@@ -111,7 +113,7 @@ A judge can therefore watch the score move as real research gaps are closed.
 
 | Tool | Purpose |
 | --- | --- |
-| `deeptrail_get_workspace_context` | Read compact active-workspace state and stable IDs |
+| `deeptrail_get_context` | Read compact active-workspace state and stable IDs |
 
 ### During an active investigation
 
@@ -122,7 +124,7 @@ A judge can therefore watch the score move as real research gaps are closed.
 | `deeptrail_add_source` | Add a validated web source with provenance |
 | `deeptrail_add_claim` | Add a concise research claim |
 | `deeptrail_link_evidence` | Link a source to a claim as supports / contradicts / qualifies |
-| `deeptrail_identify_research_gaps` | Derive and persist structural research gaps |
+| `deeptrail_find_research_gaps` | Derive and persist structural research gaps |
 | `deeptrail_compare_options` | Store a structured multi-option comparison |
 | `deeptrail_record_decision` | Record/update a draft or final evidence-backed decision |
 
@@ -192,7 +194,7 @@ The browser agent supplies intelligence and web access. DeepTrail supplies the d
 - Vitest 4.1.11
 - Native IndexedDB
 - `@xyflow/react` 12.11.5
-- browser-native WebMCP via `document.modelContext`
+- browser-native WebMCP via `document.modelContext` (with a Chrome 149-only legacy fallback)
 - GitHub Actions CI
 
 ## Run locally
@@ -226,7 +228,7 @@ npm run typecheck
 npm run build
 ```
 
-The reliability suite contains **24 regression tests across 6 files** covering workspace migration/backups, referential integrity, malformed WebMCP inputs, deterministic Research Debt, research-gap derivation, and the seeded judge workspace.
+The reliability suite contains **42 regression tests across 8 files** covering workspace migration/backups, primary-question and confidence-history invariants, referential integrity, WebMCP registration lifecycle, malformed WebMCP inputs, deterministic Research Debt, research-gap derivation, and the seeded judge workspace.
 
 ## Product principles
 
@@ -244,7 +246,7 @@ The reliability suite contains **24 regression tests across 6 files** covering w
 
 ## Current challenge status
 
-Phases 1–5 are complete. Phase 6 adds the judge launchpad, one-click evidence-backed demo, submission narrative, video script, deployment verification runbook, and final reviewer experience. Production publishing and the public YouTube upload require the submitter's hosting/YouTube account and are tracked explicitly in [`ROADMAP.md`](./ROADMAP.md).
+Phases 1–5 and the local Phase 6 engineering work are complete. Public production publishing, headed-browser rehearsals, screenshots, and the public YouTube upload require the submitter's hosting/YouTube account and are tracked explicitly in [`ROADMAP.md`](./ROADMAP.md).
 
 ## References
 
